@@ -1,0 +1,61 @@
+# Gerenciado pelo Ansible. Altere as variaveis da role terminal.
+[user]
+	name = {{ terminal_git_user_name | to_json }}
+	email = {{ terminal_git_user_email | to_json }}
+[core]
+	editor = code --wait
+	autocrlf = input
+	eol = lf
+	safecrlf = warn
+	filemode = true
+	ignorecase = false
+	quotepath = false
+[sequence]
+	editor = code --wait
+[init]
+	defaultBranch = main
+[commit]
+	verbose = true
+[fetch]
+	prune = true
+	pruneTags = true
+[pull]
+	ff = only
+[push]
+	default = simple
+	autoSetupRemote = true
+	followTags = true
+[rebase]
+	autoStash = true
+	updateRefs = true
+[rerere]
+	enabled = true
+	autoupdate = true
+[diff]
+	tool = vscode
+	algorithm = histogram
+	colorMoved = zebra
+	mnemonicPrefix = true
+[difftool]
+	prompt = false
+[difftool "vscode"]
+	cmd = code --wait --diff "$LOCAL" "$REMOTE"
+[merge]
+	tool = vscode
+	conflictStyle = zdiff3
+[mergetool]
+	prompt = false
+	keepBackup = false
+[mergetool "vscode"]
+	cmd = code --wait --merge "$REMOTE" "$LOCAL" "$BASE" "$MERGED"
+	trustExitCode = true
+[branch]
+	sort = -committerdate
+[tag]
+	sort = version:refname
+[column]
+	ui = auto
+[help]
+	autocorrect = prompt
+[credential]
+	useHttpPath = true

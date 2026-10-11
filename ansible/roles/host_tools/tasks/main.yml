@@ -1,0 +1,214 @@
+---
+- name: Criar diretorio de keyrings APT
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Instalar chaves de repositorios oficiais
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "/etc/apt/keyrings/{{ item.file }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - {file: docker.asc, url: https://download.docker.com/linux/ubuntu/gpg}
+    - {file: microsoft.asc, url: https://packages.microsoft.com/keys/microsoft.asc}
+    - {file: hashicorp.asc, url: https://apt.releases.hashicorp.com/gpg}
+    - {file: kubernetes.asc, url: "https://pkgs.k8s.io/core:/stable:/{{ host_tools_kubernetes_repository_version }}/deb/Release.key"}
+    - {file: githubcli.gpg, url: https://cli.github.com/packages/githubcli-archive-keyring.gpg}
+    - {file: 1password.asc, url: https://downloads.1password.com/linux/keys/1password.asc}
+  loop_control:
+    label: "{{ item.file }}"
+  become: true
+
+- name: Configurar repositorios APT oficiais
+  ansible.builtin.deb822_repository:
+    name: "{{ item.name }}"
+    types: [deb]
+    uris: "{{ item.uri }}"
+    suites: "{{ item.suite }}"
+    components: "{{ item.components | default(omit) }}"
+    architectures: "{{ [host_tools_apt_architecture] if item.architecture | default(true) else omit }}"
+    signed_by: "/etc/apt/keyrings/{{ item.key }}"
+    state: present
+  loop:
+    - {name: docker, uri: https://download.docker.com/linux/ubuntu, suite: noble, components: [stable], key: docker.asc}
+    - {name: microsoft-prod, uri: https://packages.microsoft.com/ubuntu/24.04/prod, suite: noble, components: [main], key: microsoft.asc}
+    - {name: azure-cli, uri: https://packages.microsoft.com/repos/azure-cli, suite: noble, components: [main], key: microsoft.asc}
+    - {name: vscode, uri: https://packages.microsoft.com/repos/code, suite: stable, components: [main], key: microsoft.asc}
+    - {name: hashicorp, uri: https://apt.releases.hashicorp.com, suite: noble, components: [main], key: hashicorp.asc}
+    - name: kubernetes
+      uri: "https://pkgs.k8s.io/core:/stable:/{{ host_tools_kubernetes_repository_version }}/deb/"
+      suite: /
+      architecture: false
+      key: kubernetes.asc
+    - {name: github-cli, uri: https://cli.github.com/packages, suite: stable, components: [main], key: githubcli.gpg}
+    - {name: 1password, uri: https://downloads.1password.com/linux/debian/amd64, suite: stable, components: [main], key: 1password.asc}
+  loop_control:
+    label: "{{ item.name }}"
+  become: true
+  notify: Atualizar cache APT
+
+- name: Aplicar atualizacao do cache APT
+  ansible.builtin.meta: flush_handlers
+
+- name: Montar lista de ferramentas do host
+  ansible.builtin.set_fact:
+    host_tools_packages_effective: >-
+      {{ host_tools_packages
+         + (['1password', '1password-cli']
+            if host_tools_install_1password | bool else []) }}
+
+- name: Instalar ferramentas do host
+  ansible.builtin.apt:
+    name: "{{ host_tools_packages_effective }}"
+    state: present
+  become: true
+
+- name: Garantir Docker habilitado e iniciado
+  ansible.builtin.systemd_service:
+    name: docker
+    enabled: true
+    state: started
+  become: true
+
+- name: Adicionar usuario ao grupo Docker quando solicitado
+  ansible.builtin.user:
+    name: "{{ ubuntu_desktop_user }}"
+    groups: docker
+    append: true
+  become: true
+  when: host_tools_add_user_to_docker_group | bool
+
+- name: Consultar confianca do certificado HTTPS de desenvolvimento .NET
+  ansible.builtin.command:
+    argv: [dotnet, dev-certs, https, --check, --trust]
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    DOTNET_CLI_HOME: "{{ ubuntu_desktop_home }}"
+  register: host_tools_dotnet_dev_certificate
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: host_tools_configure_dotnet_dev_certificate | bool
+
+- name: Confiar no certificado HTTPS de desenvolvimento .NET
+  ansible.builtin.command:
+    argv: [dotnet, dev-certs, https, --trust]
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    DOTNET_CLI_HOME: "{{ ubuntu_desktop_home }}"
+  changed_when: true
+  when:
+    - host_tools_configure_dotnet_dev_certificate | bool
+    - not ansible_check_mode
+    - host_tools_dotnet_dev_certificate.rc != 0
+
+- name: Informar limitacao do check mode para o certificado .NET
+  ansible.builtin.debug:
+    msg: >-
+      O certificado HTTPS de desenvolvimento .NET ainda nao e confiavel.
+      A criacao e a confianca serao aplicadas somente no modo real.
+  when:
+    - host_tools_configure_dotnet_dev_certificate | bool
+    - ansible_check_mode
+    - host_tools_dotnet_dev_certificate.rc != 0
+
+- name: Validar confianca do certificado HTTPS de desenvolvimento .NET
+  ansible.builtin.command:
+    argv: [dotnet, dev-certs, https, --check, --trust]
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    DOTNET_CLI_HOME: "{{ ubuntu_desktop_home }}"
+  register: host_tools_dotnet_dev_certificate_validation
+  changed_when: false
+  failed_when: host_tools_dotnet_dev_certificate_validation.rc != 0
+  when:
+    - host_tools_configure_dotnet_dev_certificate | bool
+    - not ansible_check_mode
+
+- name: Validar pacotes das ferramentas do host
+  ansible.builtin.command:
+    argv: [dpkg-query, -W, '-f=${Status}', "{{ item }}"]
+  loop: "{{ host_tools_packages_effective }}"
+  register: host_tools_package_validation
+  changed_when: false
+  failed_when: >-
+    host_tools_package_validation.rc != 0 or
+    'install ok installed' not in host_tools_package_validation.stdout
+  when: not ansible_check_mode
+
+- name: Validar estado do servico Docker
+  ansible.builtin.command:
+    argv: [systemctl, "{{ item }}", docker]
+  loop:
+    - is-active
+    - is-enabled
+  register: host_tools_docker_service_validation
+  changed_when: false
+  failed_when: host_tools_docker_service_validation.rc != 0
+  when: not ansible_check_mode
+
+- name: Consultar grupos do usuario do desktop
+  ansible.builtin.command:
+    argv: [id, -nG, "{{ ubuntu_desktop_user }}"]
+  register: host_tools_user_groups
+  changed_when: false
+  failed_when: >-
+    host_tools_user_groups.rc != 0 or
+    'docker' not in host_tools_user_groups.stdout.split()
+  when:
+    - not ansible_check_mode
+    - host_tools_add_user_to_docker_group | bool
+
+- name: Validar ferramentas de desenvolvimento instaladas
+  ansible.builtin.command:
+    argv: "{{ item.command }}"
+  loop:
+    - {name: Docker Engine, command: [docker, --version]}
+    - {name: Docker Buildx, command: [docker, buildx, version]}
+    - {name: Docker Compose, command: [docker, compose, version]}
+    - {name: PowerShell, command: [pwsh, --version]}
+    - {name: Azure CLI, command: [az, version]}
+    - {name: Terraform, command: [terraform, version]}
+    - {name: kubectl, command: [kubectl, version, --client]}
+    - {name: GitHub CLI, command: [gh, --version]}
+    - {name: VS Code, command: [code, --version]}
+    - {name: .NET SDKs, command: [dotnet, --list-sdks]}
+  loop_control:
+    label: "{{ item.name }}"
+  register: host_tools_validation
+  changed_when: false
+  failed_when: host_tools_validation.rc != 0
+  when: not ansible_check_mode
+
+- name: Validar SDKs .NET 8 e .NET 10
+  ansible.builtin.command:
+    argv: [dotnet, --list-sdks]
+  register: host_tools_dotnet_sdks
+  changed_when: false
+  failed_when: >-
+    host_tools_dotnet_sdks.rc != 0 or
+    '8.' not in host_tools_dotnet_sdks.stdout or
+    '10.' not in host_tools_dotnet_sdks.stdout
+  when: not ansible_check_mode
+
+- name: Validar ferramentas 1Password
+  ansible.builtin.command:
+    argv: "{{ item.command }}"
+  loop:
+    - {name: 1Password Desktop, command: [1password, --version]}
+    - {name: 1Password CLI, command: [op, --version]}
+  loop_control:
+    label: "{{ item.name }}"
+  register: host_tools_1password_validation
+  changed_when: false
+  failed_when: host_tools_1password_validation.rc != 0
+  when:
+    - not ansible_check_mode
+    - host_tools_install_1password | bool

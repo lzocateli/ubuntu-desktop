@@ -1,0 +1,50 @@
+---
+- name: Validar sistema operacional suportado
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == preflight_supported_distribution
+      - ansible_distribution_version == preflight_supported_release
+      - ansible_architecture in preflight_supported_architectures
+    fail_msg: >-
+      Esta automacao suporta somente Ubuntu 24.04 LTS amd64. Detectado:
+      {{ ansible_distribution }} {{ ansible_distribution_version }}
+      {{ ansible_architecture }}.
+
+- name: Validar usuario de desktop
+  ansible.builtin.assert:
+    that:
+      - ubuntu_desktop_user | length > 0
+      - ubuntu_desktop_user != 'root'
+      - ubuntu_desktop_home.startswith('/')
+      - ansible_user_id == ubuntu_desktop_user
+    fail_msg: >-
+      Conecte com o mesmo usuario nao root definido em ubuntu_desktop_user e
+      informe seu home absoluto. Usuario conectado: {{ ansible_user_id }};
+      usuario configurado: {{ ubuntu_desktop_user }}.
+
+- name: Consultar usuario de desktop
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ubuntu_desktop_user }}"
+
+- name: Validar home do usuario de desktop
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.getent_passwd[ubuntu_desktop_user] is defined
+      - ansible_facts.getent_passwd[ubuntu_desktop_user][4] == ubuntu_desktop_home
+    fail_msg: O usuario ou home informado nao corresponde ao cadastro local.
+
+- name: Consultar grupos do usuario de desktop
+  ansible.builtin.command:
+    argv: [id, -nG, "{{ ubuntu_desktop_user }}"]
+  check_mode: false
+  changed_when: false
+  register: preflight_desktop_user_groups
+
+- name: Validar acesso sudo do usuario de desktop
+  ansible.builtin.assert:
+    that:
+      - "'sudo' in preflight_desktop_user_groups.stdout.split()"
+    fail_msg: >-
+      O usuario {{ ubuntu_desktop_user }} deve pertencer ao grupo sudo antes da
+      execucao da automacao.

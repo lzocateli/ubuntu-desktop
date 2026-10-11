@@ -1,0 +1,37 @@
+---
+- name: Atualizar cache e instalar pacotes base
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Validar ferramentas base instaladas
+  ansible.builtin.command:
+    argv:
+      - "{{ item.command }}"
+      - "{{ item.argument }}"
+  loop:
+    - {name: Git, command: git, argument: --version}
+    - {name: OpenSSH, command: ssh, argument: -V}
+    - {name: ZSH, command: zsh, argument: --version}
+    - {name: TMUX, command: tmux, argument: -V}
+    - {name: Tilix, command: tilix, argument: --version}
+  loop_control:
+    label: "{{ item.name }}"
+  register: base_validation
+  changed_when: false
+  failed_when: base_validation.rc != 0
+  when: not ansible_check_mode
+
+- name: Validar pacotes base instalados
+  ansible.builtin.command:
+    argv: [dpkg-query, -W, '-f=${Status}', "{{ item }}"]
+  loop: "{{ base_packages }}"
+  register: base_package_validation
+  changed_when: false
+  failed_when: >-
+    base_package_validation.rc != 0 or
+    'install ok installed' not in base_package_validation.stdout
+  when: not ansible_check_mode

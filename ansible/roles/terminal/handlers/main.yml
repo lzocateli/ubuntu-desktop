@@ -1,0 +1,5 @@
+---
+- name: Atualizar cache de fontes
+  ansible.builtin.command:
+    argv: [fc-cache, -f, "{{ ubuntu_desktop_home }}/.local/share/fonts"]
+  changed_when: true

@@ -1,0 +1,446 @@
+---
+- name: Validar identidade Git do usuario
+  ansible.builtin.assert:
+    that:
+      - terminal_git_user_name | length > 0
+      - terminal_git_user_email | length > 3
+      - "'@' in terminal_git_user_email"
+      - terminal_git_user_name.splitlines() | length == 1
+      - terminal_git_user_email.splitlines() | length == 1
+      - terminal_git_user_email.split() | length == 1
+    fail_msg: Defina terminal_git_user_name e terminal_git_user_email validos.
+
+- name: Validar configuracao do ambiente via 1Password
+  ansible.builtin.assert:
+    that:
+      - host_tools_install_1password | default(false) | bool
+      - terminal_onepassword_env_vault | length > 0
+      - terminal_onepassword_env_document | length > 0
+    fail_msg: >-
+      Habilitar o ambiente via 1Password exige a instalacao do 1Password,
+      o vault e o nome do documento.
+  when: terminal_onepassword_env_enabled | bool
+
+- name: Criar cache persistente da automacao
+  ansible.builtin.file:
+    path: /var/cache/ubuntu-desktop
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Baixar Copilot CLI
+  ansible.builtin.get_url:
+    url: "{{ terminal_copilot_cli_archive_url }}"
+    dest: "/var/cache/ubuntu-desktop/copilot-{{ terminal_copilot_cli_version }}-linux-x64.tar.gz"
+    checksum: "{{ terminal_copilot_cli_checksum }}"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+
+- name: Criar diretorio da versao do Copilot CLI
+  ansible.builtin.file:
+    path: "/opt/copilot-cli/{{ terminal_copilot_cli_version }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Extrair Copilot CLI
+  ansible.builtin.unarchive:
+    src: "/var/cache/ubuntu-desktop/copilot-{{ terminal_copilot_cli_version }}-linux-x64.tar.gz"
+    dest: "/opt/copilot-cli/{{ terminal_copilot_cli_version }}"
+    remote_src: true
+    creates: "/opt/copilot-cli/{{ terminal_copilot_cli_version }}/copilot"
+  become: true
+
+- name: Configurar permissoes do Copilot CLI
+  ansible.builtin.file:
+    path: "/opt/copilot-cli/{{ terminal_copilot_cli_version }}/copilot"
+    state: file
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Publicar Copilot CLI
+  ansible.builtin.file:
+    src: "/opt/copilot-cli/{{ terminal_copilot_cli_version }}/copilot"
+    dest: /usr/local/bin/copilot
+    state: link
+    owner: root
+    group: root
+    force: true
+  become: true
+
+- name: Baixar arquivo do uv
+  ansible.builtin.get_url:
+    url: "{{ terminal_uv_archive_url }}"
+    dest: "/var/cache/ubuntu-desktop/uv-{{ terminal_uv_version }}.tar.gz"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+
+- name: Criar diretorio da versao do uv
+  ansible.builtin.file:
+    path: "/opt/uv/{{ terminal_uv_version }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Extrair uv
+  ansible.builtin.unarchive:
+    src: "/var/cache/ubuntu-desktop/uv-{{ terminal_uv_version }}.tar.gz"
+    dest: "/opt/uv/{{ terminal_uv_version }}"
+    remote_src: true
+    creates: "/opt/uv/{{ terminal_uv_version }}/uv-x86_64-unknown-linux-gnu/uv"
+  become: true
+
+- name: Publicar executaveis do uv
+  ansible.builtin.file:
+    src: "/opt/uv/{{ terminal_uv_version }}/uv-x86_64-unknown-linux-gnu/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    state: link
+    owner: root
+    group: root
+    force: true
+  loop:
+    - uv
+    - uvx
+  become: true
+
+- name: Instalar Oh My Posh
+  ansible.builtin.get_url:
+    url: "{{ terminal_oh_my_posh_url }}"
+    dest: /usr/local/bin/oh-my-posh
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Instalar Oh My Zsh
+  ansible.builtin.git:
+    repo: https://github.com/ohmyzsh/ohmyzsh.git
+    dest: "{{ ubuntu_desktop_home }}/.oh-my-zsh"
+    version: "{{ terminal_oh_my_zsh_version }}"
+    update: false
+
+- name: Consultar configuracao Git anterior
+  ansible.builtin.stat:
+    path: "{{ ubuntu_desktop_home }}/.gitconfig"
+  register: terminal_git_config_existing
+
+- name: Preservar configuracao Git anterior
+  ansible.builtin.copy:
+    src: "{{ ubuntu_desktop_home }}/.gitconfig"
+    dest: "{{ ubuntu_desktop_home }}/.gitconfig.pre-ansible"
+    remote_src: true
+    force: false
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0600'
+  when: terminal_git_config_existing.stat.exists
+
+- name: Configurar Git do usuario
+  ansible.builtin.template:
+    src: gitconfig.j2
+    dest: "{{ ubuntu_desktop_home }}/.gitconfig"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0600'
+    validate: /usr/bin/git config --file %s --list
+
+- name: Criar diretorio de fontes do usuario
+  ansible.builtin.file:
+    path: "{{ ubuntu_desktop_home }}/.local/share/fonts/MesloLGM-Nerd-Font-{{ terminal_nerd_fonts_version }}"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0755'
+
+- name: Baixar MesloLGM Nerd Font
+  ansible.builtin.get_url:
+    url: "{{ terminal_nerd_fonts_url }}"
+    dest: "/var/cache/ubuntu-desktop/Meslo-{{ terminal_nerd_fonts_version }}.zip"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+
+- name: Instalar MesloLGM Nerd Font
+  ansible.builtin.unarchive:
+    src: "/var/cache/ubuntu-desktop/Meslo-{{ terminal_nerd_fonts_version }}.zip"
+    dest: "{{ ubuntu_desktop_home }}/.local/share/fonts/MesloLGM-Nerd-Font-{{ terminal_nerd_fonts_version }}"
+    remote_src: true
+    creates: >-
+      {{ ubuntu_desktop_home }}/.local/share/fonts/MesloLGM-Nerd-Font-{{ terminal_nerd_fonts_version }}/MesloLGMNerdFont-Regular.ttf
+  notify: Atualizar cache de fontes
+
+- name: Configurar ZSH e Oh My Posh
+  ansible.builtin.blockinfile:
+    path: "{{ ubuntu_desktop_home }}/.zshrc"
+    create: true
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0644'
+    marker: '# {mark} ANSIBLE UBUNTU DESKTOP'
+    block: |
+      export ZSH="$HOME/.oh-my-zsh"
+      ZSH_THEME=""
+      plugins=(git)
+      source "$ZSH/oh-my-zsh.sh"
+      eval "$(oh-my-posh init zsh)"
+  when: terminal_configure_zsh | bool
+
+- name: Criar diretorio de integracao do terminal
+  ansible.builtin.file:
+    path: "{{ ubuntu_desktop_home }}/.local/lib/ubuntu-desktop"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0700'
+
+- name: Criar diretorios persistentes das ferramentas em container
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0700'
+  loop:
+    - "{{ ubuntu_desktop_home }}/.local/share/ubuntu-desktop/devops-home"
+
+- name: Instalar integracao das ferramentas de desenvolvimento em container
+  ansible.builtin.template:
+    src: development-shell.sh.j2
+    dest: "{{ ubuntu_desktop_home }}/.local/lib/ubuntu-desktop/development-shell.sh"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0600'
+
+- name: Carregar integracao de desenvolvimento nos shells
+  ansible.builtin.blockinfile:
+    path: "{{ item }}"
+    create: true
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0644'
+    marker: '# {mark} ANSIBLE DEVELOPMENT SHELL'
+    block: |
+      if [ -r "$HOME/.local/lib/ubuntu-desktop/development-shell.sh" ]; then
+        . "$HOME/.local/lib/ubuntu-desktop/development-shell.sh"
+      fi
+  loop:
+    - "{{ ubuntu_desktop_home }}/.profile"
+    - "{{ ubuntu_desktop_home }}/.bashrc"
+    - "{{ ubuntu_desktop_home }}/.zshrc"
+
+- name: Instalar renderizador seguro do ambiente do 1Password
+  ansible.builtin.copy:
+    src: render-1password-env.sh
+    dest: "{{ ubuntu_desktop_home }}/.local/lib/ubuntu-desktop/render-1password-env.sh"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0700'
+  when: terminal_onepassword_env_enabled | bool
+
+- name: Baixar e validar documento de ambiente do 1Password
+  ansible.builtin.command:
+    argv:
+      - "{{ ubuntu_desktop_home }}/.local/lib/ubuntu-desktop/render-1password-env.sh"
+      - "{{ terminal_onepassword_env_vault }}"
+      - "{{ terminal_onepassword_env_document }}"
+      - "{{ terminal_onepassword_env_account }}"
+  register: terminal_onepassword_env_exports
+  changed_when: false
+  no_log: true
+  when:
+    - terminal_onepassword_env_enabled | bool
+    - not ansible_check_mode
+
+- name: Validar documento de ambiente renderizado
+  ansible.builtin.assert:
+    that:
+      - terminal_onepassword_env_exports.stdout | default('') | length > 0
+    fail_msg: O documento do 1Password nao possui variaveis de ambiente validas.
+  no_log: true
+  when:
+    - terminal_onepassword_env_enabled | bool
+    - not ansible_check_mode
+
+- name: Incorporar ambiente do 1Password ao profile Bash
+  ansible.builtin.blockinfile:
+    path: "{{ ubuntu_desktop_home }}/.profile"
+    create: true
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0600'
+    marker: '# {mark} ANSIBLE 1PASSWORD ENV'
+    block: "{{ terminal_onepassword_env_exports.stdout }}"
+  no_log: true
+  diff: false
+  when:
+    - terminal_onepassword_env_enabled | bool
+    - not ansible_check_mode
+
+- name: Consultar profiles com carregamento runtime antigo
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ ubuntu_desktop_home }}/.bashrc"
+    - "{{ ubuntu_desktop_home }}/.zshrc"
+  register: terminal_onepassword_legacy_profiles
+
+- name: Remover carregamento runtime antigo dos shells
+  ansible.builtin.blockinfile:
+    path: "{{ item.stat.path }}"
+    marker: '# {mark} ANSIBLE 1PASSWORD ENV'
+    state: absent
+  no_log: true
+  diff: false
+  loop: "{{ terminal_onepassword_legacy_profiles.results }}"
+  when: item.stat.exists
+
+- name: Consultar profile Bash persistente
+  ansible.builtin.stat:
+    path: "{{ ubuntu_desktop_home }}/.profile"
+  register: terminal_onepassword_profile
+
+- name: Remover ambiente persistente quando desabilitado
+  ansible.builtin.blockinfile:
+    path: "{{ ubuntu_desktop_home }}/.profile"
+    marker: '# {mark} ANSIBLE 1PASSWORD ENV'
+    state: absent
+  no_log: true
+  diff: false
+  when:
+    - not terminal_onepassword_env_enabled | bool
+    - terminal_onepassword_profile.stat.exists
+
+- name: Remover auxiliares de ambiente desabilitados ou obsoletos
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop:
+    - path: "{{ ubuntu_desktop_home }}/.local/lib/ubuntu-desktop/load-1password-env.sh"
+      remove: true
+    - path: "{{ ubuntu_desktop_home }}/.local/lib/ubuntu-desktop/render-1password-env.sh"
+      remove: "{{ not terminal_onepassword_env_enabled | bool }}"
+  when: item.remove | bool
+
+- name: Informar limitacao do check mode para o ambiente 1Password
+  ansible.builtin.debug:
+    msg: >-
+      Check mode nao baixa o documento do 1Password nem altera o bloco secreto
+      em ~/.profile. A operacao ocorre somente no modo real.
+  when:
+    - terminal_onepassword_env_enabled | bool
+    - ansible_check_mode
+
+- name: Definir ZSH como shell padrao
+  ansible.builtin.user:
+    name: "{{ ubuntu_desktop_user }}"
+    shell: /usr/bin/zsh
+  become: true
+  when: terminal_configure_zsh | bool
+
+- name: Aplicar atualizacao do cache de fontes
+  ansible.builtin.meta: flush_handlers
+
+- name: Consultar configuracao Git gerenciada
+  ansible.builtin.command:
+    argv:
+      - git
+      - config
+      - --file
+      - "{{ ubuntu_desktop_home }}/.gitconfig"
+      - --get-regexp
+      - ^(user\.name|user\.email|core\.autocrlf|init\.defaultBranch)$
+  register: terminal_git_config_validation
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Validar configuracao Git do usuario
+  ansible.builtin.assert:
+    that:
+      - "('user.name ' ~ terminal_git_user_name) in terminal_git_config_validation.stdout_lines"
+      - "('user.email ' ~ terminal_git_user_email) in terminal_git_config_validation.stdout_lines"
+      - "'core.autocrlf input' in terminal_git_config_validation.stdout_lines"
+      - "'init.defaultbranch main' in terminal_git_config_validation.stdout_lines"
+    fail_msg: O arquivo .gitconfig nao corresponde a configuracao gerenciada.
+  when: not ansible_check_mode
+
+- name: Validar uv, Oh My Posh e Copilot CLI
+  ansible.builtin.command:
+    argv: "{{ item.command }}"
+  loop:
+    - {name: uv, command: [uv, --version]}
+    - {name: uvx, command: [uvx, --version]}
+    - {name: Oh My Posh, command: [oh-my-posh, version]}
+    - {name: Copilot CLI, command: [copilot, --version]}
+  loop_control:
+    label: "{{ item.name }}"
+  register: terminal_validation
+  changed_when: false
+  failed_when: terminal_validation.rc != 0
+  when: not ansible_check_mode
+
+- name: Validar sintaxe do profile com ambiente do 1Password
+  ansible.builtin.command:
+    argv:
+      - bash
+      - -n
+      - "{{ ubuntu_desktop_home }}/.profile"
+  register: terminal_onepassword_env_validation
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - terminal_onepassword_env_enabled | bool
+
+- name: Validar integracao das ferramentas em Bash e ZSH
+  ansible.builtin.command:
+    argv:
+      - "{{ item.shell }}"
+      - -c
+      - >-
+        . {{ ubuntu_desktop_home }}/.local/lib/ubuntu-desktop/development-shell.sh &&
+        {{ item.validation }}
+  loop:
+    - shell: bash
+      validation: declare -F node npm npx >/dev/null
+    - shell: zsh
+      validation: whence -w node npm npx >/dev/null
+  loop_control:
+    label: "{{ item.shell }}"
+  register: terminal_development_shell_validation
+  changed_when: false
+  failed_when: terminal_development_shell_validation.rc != 0
+  when: not ansible_check_mode
+
+- name: Consultar instalacao do Oh My Zsh
+  ansible.builtin.stat:
+    path: "{{ ubuntu_desktop_home }}/.oh-my-zsh/oh-my-zsh.sh"
+  register: terminal_oh_my_zsh_file
+  when: not ansible_check_mode
+
+- name: Validar Oh My Zsh e MesloLGM Nerd Font
+  ansible.builtin.assert:
+    that:
+      - terminal_oh_my_zsh_file.stat.isreg | default(false)
+  when: not ansible_check_mode
+
+- name: Validar MesloLGM Nerd Font
+  ansible.builtin.command:
+    argv: [fc-list, ':family']
+  register: terminal_font_validation
+  changed_when: false
+  failed_when: >-
+    terminal_font_validation.rc != 0 or
+    'MesloLGM Nerd Font' not in terminal_font_validation.stdout
+  when: not ansible_check_mode

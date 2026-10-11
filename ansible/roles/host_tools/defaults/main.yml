@@ -1,0 +1,20 @@
+---
+host_tools_install_1password: true
+host_tools_add_user_to_docker_group: false
+host_tools_configure_dotnet_dev_certificate: true
+host_tools_kubernetes_repository_version: v1.34
+host_tools_apt_architecture: amd64
+host_tools_packages:
+  - azure-cli
+  - code
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-ce
+  - docker-ce-cli
+  - docker-compose-plugin
+  - dotnet-sdk-8.0
+  - dotnet-sdk-10.0
+  - gh
+  - kubectl
+  - powershell
+  - terraform

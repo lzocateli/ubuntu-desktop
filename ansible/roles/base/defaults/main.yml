@@ -1,0 +1,17 @@
+---
+base_packages:
+  - acl
+  - ca-certificates
+  - curl
+  - fontconfig
+  - git
+  - gnupg
+  - jq
+  - libnss3-tools
+  - openssh-client
+  - openssl
+  - python3-debian
+  - tilix
+  - tmux
+  - unzip
+  - zsh

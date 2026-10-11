@@ -1,0 +1,32 @@
+export SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs"
+
+_ubuntu_desktop_devops_run() {
+  if ! command -v docker >/dev/null 2>&1; then
+    printf 'docker nao esta disponivel no host.\n' >&2
+    return 127
+  fi
+
+  local -a docker_args=(run --rm)
+  [[ -t 0 ]] && docker_args+=(-i)
+  [[ -t 1 ]] && docker_args+=(-t)
+
+  command docker "${docker_args[@]}" \
+    --user "$(id -u):$(id -g)" \
+    --env HOME=/home/dev \
+    --mount "type=bind,source=$PWD,target=/workspace" \
+    --mount "type=bind,source=$HOME/.local/share/ubuntu-desktop/devops-home,target=/home/dev" \
+    --workdir /workspace \
+    {{ terminal_devops_image | quote }} "$@"
+}
+
+node() {
+  _ubuntu_desktop_devops_run node "$@"
+}
+
+npm() {
+  _ubuntu_desktop_devops_run npm "$@"
+}
+
+npx() {
+  _ubuntu_desktop_devops_run npx "$@"
+}

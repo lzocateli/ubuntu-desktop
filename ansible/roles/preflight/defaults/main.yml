@@ -1,0 +1,5 @@
+---
+preflight_supported_distribution: Ubuntu
+preflight_supported_release: "24.04"
+preflight_supported_architectures:
+  - x86_64

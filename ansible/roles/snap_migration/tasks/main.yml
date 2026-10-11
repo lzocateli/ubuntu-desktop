@@ -1,0 +1,113 @@
+---
+- name: Exigir confirmacao para remover Snap
+  ansible.builtin.assert:
+    that:
+      - snap_migration_remove_snap | bool
+      - snap_migration_confirm_remove_snap | bool
+    fail_msg: >-
+      A remocao do Snap exige snap_migration_remove_snap=true e
+      snap_migration_confirm_remove_snap=true.
+
+- name: Inventariar Snaps instalados
+  ansible.builtin.command:
+    argv: [snap, list]
+  register: snap_migration_inventory
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Informar limitacao da simulacao do Snap
+  ansible.builtin.debug:
+    msg: >-
+      Check mode nao executa snap remove, purge do pacote snapd nem exclui dados.
+      Snaps detectados: {{ snap_migration_inventory.stdout_lines | default([]) }}
+  when: ansible_check_mode
+
+- name: Remover aplicativos Snap
+  ansible.builtin.command:
+    argv: [snap, remove, --purge, "{{ item }}"]
+  loop: "{{ snap_migration_applications }}"
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - item in snap_migration_inventory.stdout | default('')
+  become: true
+
+- name: Atualizar inventario apos remover aplicativos
+  ansible.builtin.command:
+    argv: [snap, list]
+  register: snap_migration_inventory_after_apps
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Remover dependencias Snap
+  ansible.builtin.command:
+    argv: [snap, remove, --purge, "{{ item }}"]
+  loop: "{{ snap_migration_dependencies }}"
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - item in snap_migration_inventory_after_apps.stdout | default('')
+  become: true
+
+- name: Inventariar Snaps restantes
+  ansible.builtin.command:
+    argv: [snap, list]
+  register: snap_migration_inventory_remaining
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Interromper se houver Snaps desconhecidos
+  ansible.builtin.assert:
+    that:
+      - snap_migration_inventory_remaining.stdout_lines | default([]) | length <= 1
+    fail_msg: >-
+      Ainda existem Snaps instalados. Revise-os antes de purgar snapd:
+      {{ snap_migration_inventory_remaining.stdout_lines | default([]) }}
+  when: not ansible_check_mode
+
+- name: Remover daemon Snap
+  ansible.builtin.apt:
+    name: snapd
+    state: absent
+    purge: true
+    autoremove: true
+  become: true
+
+- name: Remover dados residuais do Snap
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ snap_migration_paths }}"
+  become: true
+
+- name: Bloquear reinstalacao do Snap
+  ansible.builtin.copy:
+    dest: /etc/apt/preferences.d/no-snapd.pref
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      Package: snapd
+      Pin: release *
+      Pin-Priority: -1
+  become: true
+
+- name: Atualizar cache APT apos bloquear Snap
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+
+- name: Validar bloqueio do Snap no APT
+  ansible.builtin.command:
+    argv: [apt-cache, policy, snapd]
+  environment:
+    LC_ALL: C
+  register: snap_migration_policy
+  changed_when: false
+  failed_when: >-
+    snap_migration_policy.rc != 0 or
+    'Candidate: (none)' not in snap_migration_policy.stdout
+  when: not ansible_check_mode

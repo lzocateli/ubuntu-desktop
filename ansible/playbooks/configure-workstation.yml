@@ -1,0 +1,19 @@
+---
+- name: Configurar estacao Ubuntu Desktop
+  hosts: workstations
+  gather_facts: true
+
+  roles:
+    - role: preflight
+      tags: [always, preflight]
+    - role: base
+      tags: [base]
+    - role: flatpak_apps
+      tags: [flatpak, applications]
+    - role: host_tools
+      tags: [host_tools, development]
+    - role: terminal
+      tags: [terminal, development]
+    - role: snap_migration
+      tags: [never, snap_migration]
+      when: snap_migration_remove_snap | bool

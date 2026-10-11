@@ -1,0 +1,16 @@
+artifacts/
+.venv/
+__pycache__/
+*.retry
+.ansible/
+.cache/
+.molecule/
+ansible/inventories/private/
+ansible/.vault-password*
+vault.yml
+vault-password
+.env
+.env.*
+!.env.example
+*.pem
+*.key

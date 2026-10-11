@@ -1,0 +1,19 @@
+---
+snap_migration_remove_snap: false
+snap_migration_confirm_remove_snap: false
+snap_migration_applications:
+  - firefox
+  - snap-store
+  - firmware-updater
+snap_migration_dependencies:
+  - snapd-desktop-integration
+  - gnome-42-2204
+  - gtk-common-themes
+  - bare
+  - core22
+snap_migration_paths:
+  - "{{ ubuntu_desktop_home }}/snap"
+  - /snap
+  - /var/snap
+  - /var/lib/snapd
+  - /var/cache/snapd

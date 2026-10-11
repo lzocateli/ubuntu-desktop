@@ -1,0 +1,94 @@
+---
+- name: Instalar integracao Flatpak com GNOME
+  ansible.builtin.apt:
+    name:
+      - flatpak
+      - gnome-software
+      - gnome-software-plugin-flatpak
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Configurar repositorio Flathub
+  community.general.flatpak_remote:
+    name: "{{ flatpak_apps_remote }}"
+    flatpakrepo_url: "{{ flatpak_apps_remote_url }}"
+    state: present
+    method: system
+  become: true
+
+- name: Montar lista de aplicativos Flatpak
+  ansible.builtin.set_fact:
+    flatpak_apps_effective: >-
+      {{ flatpak_apps_packages
+         + (['org.mozilla.firefox'] if flatpak_apps_install_firefox | bool else []) }}
+
+- name: Instalar aplicativos Flatpak
+  community.general.flatpak:
+    name: "{{ flatpak_apps_effective }}"
+    remote: "{{ flatpak_apps_remote }}"
+    state: present
+    method: system
+  become: true
+
+- name: Remover aplicativos Flatpak excluidos do escopo
+  community.general.flatpak:
+    name: "{{ flatpak_apps_removed_packages }}"
+    state: absent
+    method: system
+  become: true
+
+- name: Validar runtime e repositorio Flatpak
+  ansible.builtin.command:
+    argv: "{{ item.command }}"
+  loop:
+    - {name: Flatpak, command: [flatpak, --version]}
+    - {name: Flathub, command: [flatpak, remotes, --system, --columns=name]}
+  loop_control:
+    label: "{{ item.name }}"
+  register: flatpak_apps_platform_validation
+  changed_when: false
+  failed_when: >-
+    flatpak_apps_platform_validation.rc != 0 or
+    (item.name == 'Flathub' and
+     flatpak_apps_remote not in flatpak_apps_platform_validation.stdout_lines)
+  when: not ansible_check_mode
+
+- name: Validar pacotes de integracao Flatpak
+  ansible.builtin.command:
+    argv: [dpkg-query, -W, '-f=${Status}', "{{ item }}"]
+  loop:
+    - flatpak
+    - gnome-software
+    - gnome-software-plugin-flatpak
+  register: flatpak_apps_package_validation
+  changed_when: false
+  failed_when: >-
+    flatpak_apps_package_validation.rc != 0 or
+    'install ok installed' not in flatpak_apps_package_validation.stdout
+  when: not ansible_check_mode
+
+- name: Validar aplicativos Flatpak
+  ansible.builtin.command:
+    argv:
+      - flatpak
+      - info
+      - "{{ item }}"
+  loop: "{{ flatpak_apps_effective }}"
+  register: flatpak_apps_validation
+  changed_when: false
+  failed_when: flatpak_apps_validation.rc != 0
+  when: not ansible_check_mode
+
+- name: Validar ausencia dos aplicativos Flatpak removidos
+  ansible.builtin.command:
+    argv:
+      - flatpak
+      - info
+      - "{{ item }}"
+  loop: "{{ flatpak_apps_removed_packages }}"
+  register: flatpak_apps_removed_validation
+  changed_when: false
+  failed_when: flatpak_apps_removed_validation.rc == 0
+  when: not ansible_check_mode
