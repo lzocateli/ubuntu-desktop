@@ -14,7 +14,7 @@
     owner: "{{ ubuntu_desktop_user }}"
     group: "{{ ubuntu_desktop_user }}"
     mode: '0600'
-    diff: false
+  diff: false
 
 - name: Validar fontes NuGet configuradas apos instalar .NET
   ansible.builtin.command:

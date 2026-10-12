@@ -458,22 +458,26 @@ Selecione a fonte no perfil do Tilix e reinicie o terminal.
 
 ## .NET 8 e .NET 10
 
-Com o repositorio Microsoft ja configurado:
+No Ubuntu 26.04, instale o SDK 10 pelo APT; a automacao instala o SDK 8 em
+`/opt/dotnet-sdk-8` a partir do arquivo oficial Microsoft verificado por
+SHA-512 e o expoe como `dotnet8`:
 
 ```bash
 sudo apt update
-sudo apt install -y dotnet-sdk-8.0 dotnet-sdk-10.0 openssl libnss3-tools
+sudo apt install -y dotnet-sdk-10.0 openssl libnss3-tools
 dotnet --list-sdks
 dotnet --info
-dotnet --list-sdks | grep -E '^8\.'
+dotnet8 --list-sdks
 dotnet --list-sdks | grep -E '^10\.'
 dotnet dev-certs https --trust
 dotnet dev-certs https --check --trust
 ```
 
-Os SDKs convivem lado a lado. Use `global.json` por repositorio quando um projeto
-precisar fixar uma versao. A confianca e configurada para o usuario, nunca para
-`root`. A automacao tambem persiste em Bash e ZSH:
+Os SDKs ficam isolados: use `dotnet8` para projetos que exigem .NET 8 e
+`dotnet` para .NET 10. Use `global.json` por repositorio para fixar a versao
+selecionada. O .NET 8 encerra suporte em 10/11/2026. A confianca do certificado
+e configurada para o usuario, nunca para `root`. A automacao tambem persiste em
+Bash e ZSH:
 
 ```bash
 export SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs"
@@ -483,6 +487,11 @@ Nao execute `dotnet dev-certs https --clean` como parte da instalacao; essa
 operacao remove certificados existentes e fica reservada para recuperacao manual.
 
 ## Visual Studio Code
+
+O PowerShell e instalado pela automacao a partir do release oficial Linux x64,
+com versao e SHA-256 fixados, pois o repositorio Microsoft APT configurado para
+Ubuntu 26.04 nao publica o pacote `powershell`. O executavel fica em
+`/opt/powershell/<versao>` e e acessivel como `pwsh`.
 
 O VS Code e instalado no host para acessar diretamente SDKs, Podman, SSH,
 credenciais e arquivos locais:

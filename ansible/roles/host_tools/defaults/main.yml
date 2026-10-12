@@ -1,12 +1,18 @@
 ---
 host_tools_install_1password: true
 host_tools_configure_dotnet_dev_certificate: true
+host_tools_dotnet_sdk8_version: 8.0.425
+host_tools_dotnet_sdk8_sha512: 934b8060a7190e5909ad1fd0785db542f487b3bbf6cdd14826b02095fdd0d0394298b1634085eff302928fccc33f7c1a7253e9b87df555fc36fce819bcd2e798
+host_tools_dotnet_sdk8_install_dir: /opt/dotnet-sdk-8
+host_tools_powershell_version: 7.6.6
+host_tools_powershell_sha256: ddbc4a2d113bbd46d283cfedcbcd117a70caefd7673f41f2b4e0000badf103bc
+host_tools_powershell_install_dir: /opt/powershell
+host_tools_microsoft_2025_key_sha256: d45224d594d969f084232deaaf97c58ca502a9d964c362d7aaef5a76e16b3dd1
 host_tools_kubernetes_repository_version: v1.34
 host_tools_apt_architecture: amd64
 host_tools_packages:
   - azure-cli
   - code
-  - dotnet-sdk-8.0
   - dotnet-sdk-10.0
   - fuse-overlayfs
   - google-chrome-stable
@@ -16,7 +22,6 @@ host_tools_packages:
   - network-manager-gnome
   - podman
   - podman-compose
-  - powershell
   - slirp4netns
   - terraform
   - uidmap

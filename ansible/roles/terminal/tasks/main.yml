@@ -232,20 +232,23 @@
 
 - name: Carregar integracao de desenvolvimento nos shells
   ansible.builtin.blockinfile:
-    path: "{{ item }}"
+    path: "{{ item.path }}"
     create: true
     owner: "{{ ubuntu_desktop_user }}"
     group: "{{ ubuntu_desktop_user }}"
-    mode: '0644'
+    mode: "{{ item.mode }}"
     marker: '# {mark} ANSIBLE DEVELOPMENT SHELL'
     block: |
       if [ -r "$HOME/.local/lib/ubuntu-desktop/development-shell.sh" ]; then
         . "$HOME/.local/lib/ubuntu-desktop/development-shell.sh"
       fi
   loop:
-    - "{{ ubuntu_desktop_home }}/.profile"
-    - "{{ ubuntu_desktop_home }}/.bashrc"
-    - "{{ ubuntu_desktop_home }}/.zshrc"
+    - path: "{{ ubuntu_desktop_home }}/.profile"
+      mode: '0600'
+    - path: "{{ ubuntu_desktop_home }}/.bashrc"
+      mode: '0644'
+    - path: "{{ ubuntu_desktop_home }}/.zshrc"
+      mode: '0644'
 
 - name: Instalar renderizador seguro do ambiente do 1Password
   ansible.builtin.copy:

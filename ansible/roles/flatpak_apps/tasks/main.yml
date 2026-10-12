@@ -120,6 +120,7 @@
 - name: Consultar arquivo desktop exportado pelo Edge Flatpak
   ansible.builtin.stat:
     path: /var/lib/flatpak/exports/share/applications/com.microsoft.Edge.desktop
+    follow: true
   register: flatpak_apps_edge_desktop_entry
   when: not ansible_check_mode
 

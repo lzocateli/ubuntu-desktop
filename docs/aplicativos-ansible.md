@@ -49,6 +49,11 @@ Flatpak e o navegador padrao do usuario para arquivos HTML e os esquemas HTTP e
 HTTPS; a preferencia e configurada em `~/.config/mimeapps.list` e validada com
 `xdg-mime`.
 
+Os repositorios Microsoft usam keyrings separados conforme a assinatura de cada
+feed: `microsoft.asc` para Azure CLI e VS Code, e `microsoft-2025.asc` para o
+feed de producao do Ubuntu 26.04. O SHA-256 da chave de 2025 e fixado nos
+defaults da role.
+
 | Ferramenta | Instalacao/configuracao minima | Validacao Ansible |
 | --- | --- | --- |
 | Git | Pacote Ubuntu e `~/.gitconfig` Linux gerenciado para `lzocateli` | Versao, sintaxe, identidade, LF e branch inicial |
@@ -63,7 +68,7 @@ HTTPS; a preferencia e configurada em `~/.config/mimeapps.list` e validada com
 | Mullvad CLI | Incluida no pacote oficial `mullvad-vpn` | `mullvad --help` |
 | Podman | Pacotes Ubuntu para runtime rootless; sem daemon de sistema | `podman --version`, `podman info` com `Rootless=true` |
 | Podman Compose | Provider Compose executado pelo usuario | `podman compose version` |
-| PowerShell | Repositorio Microsoft | `pwsh --version` |
+| PowerShell | Release oficial Microsoft, fixado por versao e SHA-256 em `/opt/powershell` | `pwsh --version` |
 | Azure CLI | Repositorio Microsoft | `az version` |
 | Terraform | Repositorio HashiCorp | `terraform version` |
 | kubectl | Repositorio Kubernetes `v1.34` por padrao | `kubectl version --client` |
@@ -71,8 +76,8 @@ HTTPS; a preferencia e configurada em `~/.config/mimeapps.list` e validada com
 | 1Password Desktop | Repositorio oficial | `1password --version` |
 | 1Password CLI | Repositorio oficial | `op --version` |
 | Visual Studio Code | Repositorio Microsoft no host | `code --version` |
-| .NET SDK 8 | Repositorio Microsoft | Presenca da major 8 em `dotnet --list-sdks` |
-| .NET SDK 10 | Repositorio Microsoft | Presenca da major 10 em `dotnet --list-sdks` |
+| .NET SDK 8 | Arquivo oficial Microsoft fixado por versao e SHA-512 em `/opt/dotnet-sdk-8` | `dotnet8 --list-sdks` |
+| .NET SDK 10 | Repositorio Ubuntu | Presenca da major 10 em `dotnet --list-sdks` |
 | Certificado HTTPS .NET | `openssl`, `libnss3-tools` e trust por usuario | `dotnet dev-certs https --check --trust` |
 
 O Podman e executado sem `sudo` e sem daemon root. A role gerencia
@@ -85,6 +90,18 @@ Configuracoes de Rede do GNOME via NetworkManager; nenhum tunel ou chave e
 criado pela automacao. O pacote Mullvad fornece aplicativo grafico e `mullvad`
 CLI, mas a role nao informa numero de conta, inicia sessao nem conecta a VPN.
 A instalacao do Chrome e do Mullvad adiciona repositorios APT oficiais dedicados.
+
+No Ubuntu 26.04, o APT fornece o .NET SDK 10, mas nao publica o SDK 8. A role
+instala a versao 8.0.425 do arquivo oficial Linux x64 com SHA-512 verificado,
+isolada em `/opt/dotnet-sdk-8` e acessivel pelo comando `dotnet8`; o comando
+`dotnet` continua usando o SDK 10 do Ubuntu. Atualize a versao e o hash juntos
+em `ansible/roles/host_tools/defaults/main.yml`. O .NET 8 encerra suporte em
+10/11/2026; mantenha-o somente enquanto houver projetos que precisem dele.
+
+O repositorio Microsoft APT configurado para Ubuntu 26.04 nao publica o pacote
+PowerShell. A role instala o tarball oficial Linux x64 do PowerShell 7.6.6 com
+SHA-256 verificado em `/opt/powershell/7.6.6` e cria `/usr/local/bin/pwsh`.
+Atualize a versao e o hash juntos nos defaults da role.
 
 ## Terminal e shell
 

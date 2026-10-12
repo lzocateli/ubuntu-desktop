@@ -48,8 +48,10 @@
       - --vault
       - "{{ terminal_ssh_op_vault }}"
       - --fields
-      - label=private key
+      - label=chave privada
       - --reveal
+      - --format
+      - json
   environment:
     OP_SERVICE_ACCOUNT_TOKEN: "{{ lookup('ansible.builtin.env', 'OP_SERVICE_ACCOUNT_TOKEN') }}"
   delegate_to: localhost
@@ -67,7 +69,9 @@
 - name: Validar formato das chaves SSH baixadas
   ansible.builtin.assert:
     that:
-      - item.stdout is match('^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----')
+      - >-
+        ((item.stdout | from_json)['value'])
+        is match('^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----')
     fail_msg: O item {{ item.item }} nao retornou uma chave privada OpenSSH valida.
   loop: "{{ terminal_ssh_private_keys.results | default([]) }}"
   loop_control:
@@ -89,7 +93,7 @@
 
 - name: Instalar chaves privadas SSH
   ansible.builtin.copy:
-    content: "{{ item.stdout }}"
+    content: "{{ (item.stdout | from_json)['value'] }}"
     dest: "{{ ubuntu_desktop_home }}/.ssh/{{ item.item }}"
     owner: "{{ ubuntu_desktop_user }}"
     group: "{{ ubuntu_desktop_user }}"

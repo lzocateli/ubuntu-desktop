@@ -281,8 +281,8 @@ consulta ocorre e a mutacao e informada como pendente.
 ## Chaves SSH e NuGet
 
 Na execucao real, a role `terminal` usa `op` no controller Ansible para ler o
-campo `private key` dos itens configurados no vault `Automation`. O controller
-precisa ter o 1Password CLI e a variavel de ambiente
+campo `chave privada` dos itens SSH configurados no vault `Automation`. O
+controller precisa ter o 1Password CLI e a variavel de ambiente
 `OP_SERVICE_ACCOUNT_TOKEN` definida com acesso somente de leitura ao vault. O
 token nao deve ser salvo no inventario nem passado como argumento de linha de
 comando. As consultas ao 1Password e a instalacao das chaves sao omitidas em
@@ -438,7 +438,7 @@ Variaveis principais:
 | `terminal_onepassword_env_vault` | Vazio | Nome/ID do vault do documento |
 | `terminal_onepassword_env_document` | Vazio | Nome/ID do documento `.env` |
 | `terminal_ssh_op_vault` | Vazio | Vault do 1Password que contem as chaves SSH |
-| `terminal_ssh_key_items` | `[]` | Itens cujos campos `private key` serao instalados |
+| `terminal_ssh_key_items` | `[]` | Itens cujos campos `chave privada` serao instalados |
 | `terminal_ssh_hosts` | `[]` | Aliases, destinos, usuarios e nomes das chaves SSH |
 | `terminal_nuget_test_source` | `https://int.nugettest.org/` | URL da fonte NuGet adicional |
 | `host_tools_kubernetes_repository_version` | `v1.34` | Serie menor de kubectl |

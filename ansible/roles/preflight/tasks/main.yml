@@ -38,10 +38,10 @@
   ansible.builtin.command:
     argv:
       - awk
-      - -F:
+      - "-F:"
       - -v
       - "user={{ ubuntu_desktop_user }}"
-      - '$1 == user && $3 ~ /^[0-9]+$/ && $4 ~ /^[0-9]+$/ && $4 > 0 { found=1 } END { exit !found }'
+      - '$1 == user && $2 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ && $3 > 0 { found=1 } END { exit !found }'
       - "{{ item }}"
   loop:
     - /etc/subuid
