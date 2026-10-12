@@ -19,10 +19,11 @@ host_tools_packages:
   - gh
   - kubectl
   - mullvad-vpn
+  - network-manager
   - network-manager-gnome
   - podman
   - podman-compose
   - slirp4netns
   - terraform
   - uidmap
-  - wireguard-tools
+  - wireguard

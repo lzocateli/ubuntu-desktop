@@ -69,8 +69,7 @@ defaults da role.
 | TMUX | Pacote Ubuntu | `tmux -V` |
 | Tilix | Pacote Ubuntu | `tilix --version` |
 | Google Chrome | Repositorio Google assinado para APT | `google-chrome --version` |
-| WireGuard CLI | `wireguard-tools` do Ubuntu | `wg --version` |
-| WireGuard grafico | NetworkManager nas Configuracoes de Rede do GNOME e pacote `network-manager-gnome` | Pacote instalado pelo `dpkg-query` |
+| WireGuard VPN | Metapacote `wireguard` do Ubuntu e NetworkManager (`network-manager`, `network-manager-gnome`) | Pacotes via `dpkg-query` e CLI com `wg --version` |
 | Mullvad Desktop | Repositorio oficial Mullvad | Executavel `/opt/Mullvad VPN/mullvad-vpn` |
 | Mullvad CLI | Incluida no pacote oficial `mullvad-vpn` | `mullvad --help` |
 | Podman | Pacotes Ubuntu para runtime rootless; sem daemon de sistema | `podman --version`, `podman info` com `Rootless=true` |
@@ -92,11 +91,12 @@ O Podman e executado sem `sudo` e sem daemon root. A role gerencia
 armazenamento de containers no home do usuario. O usuario precisa de faixas
 subordinadas configuradas em `/etc/subuid` e `/etc/subgid`.
 
-O cliente WireGuard oferece `wg`/`wg-quick` e configuracao grafica nas
-Configuracoes de Rede do GNOME via NetworkManager; nenhum tunel ou chave e
-criado pela automacao. O pacote Mullvad fornece aplicativo grafico e `mullvad`
-CLI, mas a role nao informa numero de conta, inicia sessao nem conecta a VPN.
-A instalacao do Chrome e do Mullvad adiciona repositorios APT oficiais dedicados.
+O metapacote WireGuard instala as ferramentas `wg`/`wg-quick`; o NetworkManager
+oferece suporte nativo a WireGuard e a configuracao grafica fica disponivel nas
+Configuracoes de Rede do GNOME. Nenhum tunel ou chave e criado pela automacao.
+O pacote Mullvad fornece aplicativo grafico e `mullvad` CLI, mas a role nao
+informa numero de conta, inicia sessao nem conecta a VPN. A instalacao do Chrome
+e do Mullvad adiciona repositorios APT oficiais dedicados.
 
 No Ubuntu 26.04, o APT fornece o .NET SDK 10, mas nao publica o SDK 8. A role
 instala a versao 8.0.425 do arquivo oficial Linux x64 com SHA-512 verificado,

@@ -1,0 +1,16 @@
+---
+- name: Validar instalacao desktop do WireGuard
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../ansible/roles/host_tools/defaults/main.yml
+  tasks:
+    - name: Garantir WireGuard e NetworkManager para o desktop
+      ansible.builtin.assert:
+        that:
+          - "'wireguard' in host_tools_packages"
+          - "'network-manager' in host_tools_packages"
+          - "'network-manager-gnome' in host_tools_packages"
+          - "'wireguard-tools' not in host_tools_packages"
+          - host_tools_packages | unique | length == host_tools_packages | length
