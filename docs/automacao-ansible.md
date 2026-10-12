@@ -153,6 +153,53 @@ conexao SSH autenticar por senha em vez de chave/agent. O token
 `OP_SERVICE_ACCOUNT_TOKEN` do 1Password nao pertence ao Ansible Vault: mantenha-o
 exportado no ambiente do controller.
 
+### Criptografar e descriptografar o Vault
+
+O fluxo recomendado e criar ou editar o arquivo com `ansible-vault`; assim o
+conteudo salvo continua criptografado:
+
+```bash
+ansible-vault edit "$SECRETS_DIR/vault.yml" \
+  --vault-password-file "$SECRETS_DIR/vault-password"
+```
+
+Para criptografar um YAML que ainda esteja em texto claro, proteja o arquivo com
+permissoes restritas antes e execute:
+
+```bash
+chmod 600 "$SECRETS_DIR/vault.yml"
+ansible-vault encrypt "$SECRETS_DIR/vault.yml" \
+  --vault-password-file "$SECRETS_DIR/vault-password"
+```
+
+Para consultar o conteudo descriptografado sem substituir o arquivo criptografado,
+use `view`. A saida contem secrets; nao a redirecione para logs, terminal
+compartilhado ou historico:
+
+```bash
+ansible-vault view "$SECRETS_DIR/vault.yml" \
+  --vault-password-file "$SECRETS_DIR/vault-password"
+```
+
+Se for realmente necessario obter uma copia descriptografada em disco, escreva
+em um arquivo separado com `umask 077`, mantenha-o fora do repositorio e apague-o
+assim que terminar:
+
+```bash
+umask 077
+ansible-vault decrypt "$SECRETS_DIR/vault.yml" \
+  --vault-password-file "$SECRETS_DIR/vault-password" \
+  --output "$SECRETS_DIR/vault.plain.yml"
+chmod 600 "$SECRETS_DIR/vault.plain.yml"
+```
+
+`vault.plain.yml` fica em texto claro. Nao substitua `vault.yml` por essa copia e
+nao a use em execucoes. Para apagar a copia quando nao for mais necessaria:
+
+```bash
+rm -- "$SECRETS_DIR/vault.plain.yml"
+```
+
 Para manter os arquivos no perfil Windows, crie o diretorio no PowerShell e
 converta o caminho ao executar pelo WSL:
 

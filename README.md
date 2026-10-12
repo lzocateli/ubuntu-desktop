@@ -185,6 +185,14 @@ se autenticar por senha SSH, inclua também `ansible_password`. O
 **Não inclua `OP_SERVICE_ACCOUNT_TOKEN` nesses arquivos**: essa variável deve
 estar exportada no ambiente do controller para o `op`.
 
+Edite mantendo o conteúdo criptografado com `ansible-vault edit`. Para ver o
+conteúdo descriptografado sem alterar o arquivo, use `ansible-vault view`
+(atenção: os valores aparecem na saída). Para criptografar um YAML existente,
+use `ansible-vault encrypt`; para descriptografar sem substituir o original,
+use `ansible-vault decrypt --output` para criar uma cópia temporária protegida.
+Veja os comandos completos e cuidados com a cópia em
+[Secrets e Ansible Vault](docs/automacao-ansible.md#secrets-e-ansible-vault).
+
 O comando real, com os parâmetros de remoção e confirmação exigidos, é:
 
 ```bash
