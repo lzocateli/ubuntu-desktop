@@ -15,16 +15,16 @@ setup() {
     >/dev/null
 }
 
-create_docker_stub() {
+create_podman_stub() {
   stub_dir="${BATS_TEST_TMPDIR}/bin"
-  capture="${BATS_TEST_TMPDIR}/docker-arguments.txt"
+  capture="${BATS_TEST_TMPDIR}/podman-arguments.txt"
   export capture
   mkdir -p "${stub_dir}"
-  cat >"${stub_dir}/docker" <<'EOF'
+  cat >"${stub_dir}/podman" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$@" >"${capture}"
 EOF
-  chmod +x "${stub_dir}/docker"
+  chmod +x "${stub_dir}/podman"
   export PATH="${stub_dir}:${PATH}"
 }
 
@@ -39,26 +39,27 @@ EOF
   [ "${status}" -eq 0 ]
 }
 
-@test "node usa imagem, usuario e workspace sem montar socket Docker" {
-  create_docker_stub
+@test "node usa Podman com imagem, usuario e workspace" {
+  create_podman_stub
   workspace="${BATS_TEST_TMPDIR}/workspace com espaco"
   mkdir -p "${workspace}"
 
   run bash -c 'cd "$1"; . "$RUNTIME"; node --version' _ "${workspace}"
 
   [ "${status}" -eq 0 ]
+  grep -Fx -- "--userns=keep-id" "${capture}"
   grep -Fx -- "$(id -u):$(id -g)" "${capture}"
   grep -Fx -- "type=bind,source=${workspace},target=/workspace" "${capture}"
   grep -Fx -- "example/devops:test" "${capture}"
   grep -Fx -- "node" "${capture}"
   grep -Fx -- "--version" "${capture}"
 
-  run grep -F -- "/var/run/docker.sock" "${capture}"
+  run grep -F -- "/run/podman/podman.sock" "${capture}"
 
   [ "${status}" -ne 0 ]
 }
 
-@test "runtime Docker fica restrito a node npm e npx" {
+@test "runtime rootless fica restrito a node npm e npx" {
   run bash -c '. "$RUNTIME"; declare -F copilot'
 
   [ "${status}" -ne 0 ]

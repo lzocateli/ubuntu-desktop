@@ -26,11 +26,11 @@
 
 Aplicar o estado descrito no [tutorial da stack de desenvolvimento](stack-desenvolvimento.md)
 e nas fases de Flatpak/Snap do documento original. O alvo suportado e Ubuntu
-Desktop 24.04 LTS amd64. O controller deve executar em Linux ou WSL; Windows
+Desktop 26.04 LTS amd64. O controller deve executar em Linux ou WSL; Windows
 nativo nao e suportado pelo Ansible.
 
-A automacao instala aplicativos, repositorios APT, SDKs, CLIs, Docker, shell e
-fontes. A remocao do Snap e separada, destrutiva e opt-in.
+A automacao instala aplicativos, repositorios APT, SDKs, CLIs, Podman rootless,
+shell e fontes. A remocao do Snap e separada, destrutiva e opt-in.
 
 ## Dependencias
 
@@ -42,9 +42,10 @@ Controller:
 
 Alvo:
 
-- Ubuntu Desktop 24.04 LTS amd64.
+- Ubuntu Desktop 26.04 LTS amd64.
 - Python disponivel para o Ansible.
 - Usuario SSH/local `zocatel`, home `/home/zocatel` e membro do grupo `sudo`.
+- Faixas subordinadas do usuario configuradas em `/etc/subuid` e `/etc/subgid`.
 - Acesso HTTPS aos repositorios oficiais e ao Flathub.
 - Sessao GNOME para validacao funcional de aplicativos graficos.
 
@@ -59,7 +60,7 @@ de qualquer download.
 | `ansible/roles/preflight/` | Validacao de SO, arquitetura e usuario |
 | `ansible/roles/base/` | Pacotes Ubuntu e terminal |
 | `ansible/roles/flatpak_apps/` | Flathub e aplicativos graficos |
-| `ansible/roles/host_tools/` | Repositorios, SDKs, CLIs e Docker |
+| `ansible/roles/host_tools/` | Repositorios, SDKs, CLIs e Podman rootless |
 | `ansible/roles/terminal/` | uv, ZSH, Oh My Posh, Oh My Zsh e fonte |
 | `ansible/roles/snap_migration/` | Remocao e bloqueio opt-in do Snap |
 | `scripts/bash/bootstrap-ansible.sh` | Dependencias do controller |
@@ -207,9 +208,10 @@ A role `terminal` instala um runtime compartilhado e o carrega em `~/.profile`,
 `~/.bashrc` e `~/.zshrc`. As funcoes `node`, `npm` e `npx` executam na imagem
 definida por `terminal_devops_image`; Node/npm nao sao instalados no host.
 
-O diretorio atual e montado como `/workspace`, com UID/GID do usuario. O home
-interno e persistido em `~/.local/share/ubuntu-desktop/devops-home`. O socket
-Docker, tokens e configuracoes do Copilot/GitHub CLI nao sao montados.
+O diretorio atual e montado como `/workspace`, com `--userns=keep-id` e UID/GID
+do usuario. O home interno e persistido em
+`~/.local/share/ubuntu-desktop/devops-home`. O socket Podman, tokens e
+configuracoes do Copilot/GitHub CLI nao sao montados.
 
 O Copilot CLI e instalado localmente a partir do tarball Linux x64 oficial, sem
 Node/npm. A versao e o SHA-256 ficam fixados nas variaveis da role, o binario e
@@ -333,10 +335,9 @@ Variaveis principais:
 | `terminal_git_user_email` | E-mail definido no inventario | E-mail registrado nos commits |
 | `flatpak_apps_install_firefox` | `false` | Instala Firefox Flatpak |
 | `host_tools_install_1password` | `true` | Instala Desktop e CLI |
-| `host_tools_add_user_to_docker_group` | `false` | Concede acesso privilegiado ao Docker |
 | `host_tools_configure_dotnet_dev_certificate` | `true` | Cria e confia no certificado HTTPS .NET do usuario |
 | `terminal_configure_zsh` | `true` | Configura e define ZSH como shell |
-| `terminal_devops_image` | `lzocateli/devops:cpu-ubuntu24.04` | Imagem para Node, npm e npx |
+| `terminal_devops_image` | `docker.io/lzocateli/devops:cpu-ubuntu24.04` | Imagem para Node, npm e npx |
 | `terminal_copilot_cli_version` | `1.0.91` | Versao standalone do Copilot CLI instalada no host |
 | `terminal_copilot_cli_checksum` | SHA-256 do release 1.0.91 | Integridade do tarball Linux x64 |
 | `terminal_onepassword_env_enabled` | `false` | Baixa o `.env` e persiste exports no profile |
@@ -417,7 +418,7 @@ nao possuem rollback automatico.
 | `preflight` | Validacoes do alvo |
 | `base` | Pacotes Ubuntu e terminal |
 | `flatpak` | Flathub e aplicativos |
-| `host_tools` | Docker, SDKs e CLIs |
+| `host_tools` | Podman rootless, SDKs e CLIs |
 | `terminal` | Shell, uv, prompt e fonte |
 | `development` | Ferramentas do host e terminal |
 | `snap_migration` | Remocao opt-in do Snap |
@@ -445,7 +446,8 @@ politica local e apague logs antigos apenas apos revisar seu conteudo.
 
 - Repositorios externos usam HTTPS, keyrings dedicados e `signed-by`.
 - O playbook nao desabilita TLS nem verificacao de host SSH.
-- Docker executa daemon root; adesao ao grupo `docker` e desativada por padrao.
+- Podman executa containers como o usuario, sem daemon root ou grupo privilegiado.
+- Rootless requer UID/GID subordinados em `/etc/subuid` e `/etc/subgid`.
 - `.gitconfig` tem modo `0600`, nao contem tokens e pertence a `zocatel`.
 - `.zshrc` recebe somente um bloco identificado e idempotente.
 - Handlers atualizam cache APT e fontes somente quando necessario.
@@ -473,7 +475,7 @@ ansible-playbook -i inventories/example/hosts.yml \
 ```
 
 Check mode, primeira aplicacao e segunda aplicacao devem usar uma VM Ubuntu
-Desktop 24.04 descartavel. Na segunda aplicacao, o recap deve informar
+Desktop 26.04 descartavel. Na segunda aplicacao, o recap deve informar
 `changed=0`; downloads alterados no upstream ou atualizacoes explicitas devem ser
 investigados, nao simplesmente ignorados.
 

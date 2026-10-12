@@ -1,16 +1,17 @@
 export SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs"
 
 _ubuntu_desktop_devops_run() {
-  if ! command -v docker >/dev/null 2>&1; then
-    printf 'docker nao esta disponivel no host.\n' >&2
+  if ! command -v podman >/dev/null 2>&1; then
+    printf 'podman nao esta disponivel no host.\n' >&2
     return 127
   fi
 
-  local -a docker_args=(run --rm)
-  [[ -t 0 ]] && docker_args+=(-i)
-  [[ -t 1 ]] && docker_args+=(-t)
+  local -a podman_args=(run --rm)
+  [[ -t 0 ]] && podman_args+=(-i)
+  [[ -t 1 ]] && podman_args+=(-t)
 
-  command docker "${docker_args[@]}" \
+  command podman "${podman_args[@]}" \
+    --userns=keep-id \
     --user "$(id -u):$(id -g)" \
     --env HOME=/home/dev \
     --mount "type=bind,source=$PWD,target=/workspace" \

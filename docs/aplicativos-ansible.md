@@ -12,7 +12,7 @@
 ## Escopo
 
 Esta e a relacao canonica das ferramentas instaladas, configuradas e validadas
-pela automacao. O alvo suportado e Ubuntu Desktop 24.04 LTS amd64. Todas as
+pela automacao. O alvo suportado e Ubuntu Desktop 26.04 LTS amd64. Todas as
 validacoes pos-instalacao rodam no modo real; em check mode, o Ansible apresenta
 o plano sem exigir que binarios ainda nao instalados existam.
 
@@ -53,9 +53,8 @@ estado. Repositorios externos usam HTTPS, Deb822, keyrings e `signed-by`.
 | ZSH | Pacote Ubuntu e shell padrao opcional | `zsh --version` |
 | TMUX | Pacote Ubuntu | `tmux -V` |
 | Tilix | Pacote Ubuntu | `tilix --version` |
-| Docker Engine | Repositorio oficial; daemon iniciado e habilitado | Versao, Compose, `is-active`, `is-enabled` |
-| Docker Buildx | Plugin oficial | `docker buildx version` |
-| Docker Compose | Plugin oficial | `docker compose version` |
+| Podman | Pacotes Ubuntu para runtime rootless; sem daemon de sistema | `podman --version`, `podman info` com `Rootless=true` |
+| Podman Compose | Provider Compose executado pelo usuario | `podman compose version` |
 | PowerShell | Repositorio Microsoft | `pwsh --version` |
 | Azure CLI | Repositorio Microsoft | `az version` |
 | Terraform | Repositorio HashiCorp | `terraform version` |
@@ -68,9 +67,10 @@ estado. Repositorios externos usam HTTPS, Deb822, keyrings e `signed-by`.
 | .NET SDK 10 | Repositorio Microsoft | Presenca da major 10 em `dotnet --list-sdks` |
 | Certificado HTTPS .NET | `openssl`, `libnss3-tools` e trust por usuario | `dotnet dev-certs https --check --trust` |
 
-O acesso sem `sudo` ao Docker e opcional. Quando
-`host_tools_add_user_to_docker_group: true`, a automacao adiciona e valida o
-usuario no grupo `docker`; uma nova sessao e necessaria para renovar os grupos.
+O Podman e executado sem `sudo` e sem daemon root. A role gerencia
+`~/.config/containers/containers.conf` e `storage.conf`, mantendo redes e
+armazenamento de containers no home do usuario. O usuario precisa de faixas
+subordinadas configuradas em `/etc/subuid` e `/etc/subgid`.
 
 ## Terminal e shell
 
@@ -83,13 +83,13 @@ usuario no grupo `docker`; uma nova sessao e necessaria para renovar os grupos.
 | Git do usuario | VS Code, fluxo de branches, diff/merge, rebase e `rerere` | Valores essenciais via `git config --file` |
 | MesloLGM Nerd Font | Fonte no perfil do usuario e atualização do cache | Familia presente em `fc-list` |
 | Ambiente 1Password | Ansible baixa o `.env` e grava exports em `~/.profile` | Sintaxe do profile e testes com stub |
-| Node, npm e npx | Funcoes que executam na imagem `lzocateli/devops:cpu-ubuntu24.04` | Funcoes carregadas em Bash e ZSH |
+| Node, npm e npx | Funcoes que executam na imagem `docker.io/lzocateli/devops:cpu-ubuntu24.04` via Podman rootless | Funcoes carregadas em Bash e ZSH |
 | Copilot CLI | Binario Linux x64 oficial fixado e verificado por SHA-256 | `copilot --version` no host |
 
 O ambiente 1Password e opt-in e exige `terminal_onepassword_env_enabled: true`,
 vault e documento. Consulte o [guia operacional](automacao-ansible.md#ambiente-linux-pelo-1password).
 Node e npm nao sao instalados no host. Seus wrappers usam um home isolado e nao
-montam o socket Docker. O Copilot CLI e instalado localmente sem depender de
+montam o socket Podman. O Copilot CLI e instalado localmente sem depender de
 Node/npm; autenticacao e configuracao permanecem no perfil normal do usuario.
 
 ## Dependencias do controller
@@ -103,7 +103,7 @@ valida `uv`, `ansible-core` 2.19.2, `pywinrm` 0.5.0 e a collection
 
 - Comandos e metadados comprovam instalacao, nao login em servicos externos.
 - Aplicativos graficos precisam ser abertos em uma sessao GNOME real.
-- Remmina e Docker precisam de testes funcionais conforme hardware e rede.
+- Remmina e Podman precisam de testes funcionais conforme hardware e rede.
 - O Ansible precisa acessar o documento como o usuario durante a aplicacao real.
 - Check mode remoto, primeira aplicacao e segunda aplicacao com `changed=0`
   permanecem obrigatorios em VM descartavel autorizada.

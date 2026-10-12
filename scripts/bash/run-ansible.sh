@@ -30,7 +30,7 @@ usage() {
   cat <<'EOF'
 Uso: run-ansible.sh --inventory CAMINHO --limit ALVO [opcoes]
 
-Configura uma estacao Ubuntu Desktop 24.04 via Ansible. Requer controller Linux
+Configura uma estacao Ubuntu Desktop 26.04 via Ansible. Requer controller Linux
 ou WSL, bootstrap concluido, acesso SSH/local e privilegios become no alvo.
 
 Opcoes obrigatorias:

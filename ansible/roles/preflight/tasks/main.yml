@@ -6,7 +6,7 @@
       - ansible_distribution_version == preflight_supported_release
       - ansible_architecture in preflight_supported_architectures
     fail_msg: >-
-      Esta automacao suporta somente Ubuntu 24.04 LTS amd64. Detectado:
+      Esta automacao suporta somente Ubuntu 26.04 LTS amd64. Detectado:
       {{ ansible_distribution }} {{ ansible_distribution_version }}
       {{ ansible_architecture }}.
 
@@ -33,6 +33,23 @@
       - ansible_facts.getent_passwd[ubuntu_desktop_user] is defined
       - ansible_facts.getent_passwd[ubuntu_desktop_user][4] == ubuntu_desktop_home
     fail_msg: O usuario ou home informado nao corresponde ao cadastro local.
+
+- name: Validar faixas rootless (corrigir /etc/subuid e /etc/subgid se ausentes)
+  ansible.builtin.command:
+    argv:
+      - awk
+      - -F:
+      - -v
+      - "user={{ ubuntu_desktop_user }}"
+      - '$1 == user && $3 ~ /^[0-9]+$/ && $4 ~ /^[0-9]+$/ && $4 > 0 { found=1 } END { exit !found }'
+      - "{{ item }}"
+  loop:
+    - /etc/subuid
+    - /etc/subgid
+  changed_when: false
+  failed_when: preflight_rootless_mapping.rc != 0
+  check_mode: false
+  register: preflight_rootless_mapping
 
 - name: Consultar grupos do usuario de desktop
   ansible.builtin.command:

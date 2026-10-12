@@ -21,7 +21,7 @@
 ## Objetivo
 
 Explicar cada parametro do `.gitconfig` criado pela role Ansible `terminal` no
-Ubuntu Desktop 24.04 LTS. O estado foi definido para o usuario `zocatel`, com
+Ubuntu Desktop 26.04 LTS. O estado foi definido para o usuario `zocatel`, com
 line endings Linux, operacoes explicitas e integracao com Visual Studio Code.
 
 O template de origem e

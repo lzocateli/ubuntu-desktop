@@ -16,7 +16,6 @@
     group: root
     mode: '0644'
   loop:
-    - {file: docker.asc, url: https://download.docker.com/linux/ubuntu/gpg}
     - {file: microsoft.asc, url: https://packages.microsoft.com/keys/microsoft.asc}
     - {file: hashicorp.asc, url: https://apt.releases.hashicorp.com/gpg}
     - {file: kubernetes.asc, url: "https://pkgs.k8s.io/core:/stable:/{{ host_tools_kubernetes_repository_version }}/deb/Release.key"}
@@ -37,11 +36,10 @@
     signed_by: "/etc/apt/keyrings/{{ item.key }}"
     state: present
   loop:
-    - {name: docker, uri: https://download.docker.com/linux/ubuntu, suite: noble, components: [stable], key: docker.asc}
-    - {name: microsoft-prod, uri: https://packages.microsoft.com/ubuntu/24.04/prod, suite: noble, components: [main], key: microsoft.asc}
-    - {name: azure-cli, uri: https://packages.microsoft.com/repos/azure-cli, suite: noble, components: [main], key: microsoft.asc}
+    - {name: microsoft-prod, uri: https://packages.microsoft.com/ubuntu/26.04/prod, suite: resolute, components: [main], key: microsoft.asc}
+    - {name: azure-cli, uri: https://packages.microsoft.com/repos/azure-cli, suite: resolute, components: [main], key: microsoft.asc}
     - {name: vscode, uri: https://packages.microsoft.com/repos/code, suite: stable, components: [main], key: microsoft.asc}
-    - {name: hashicorp, uri: https://apt.releases.hashicorp.com, suite: noble, components: [main], key: hashicorp.asc}
+    - {name: hashicorp, uri: https://apt.releases.hashicorp.com, suite: resolute, components: [main], key: hashicorp.asc}
     - name: kubernetes
       uri: "https://pkgs.k8s.io/core:/stable:/{{ host_tools_kubernetes_repository_version }}/deb/"
       suite: /
@@ -70,20 +68,28 @@
     state: present
   become: true
 
-- name: Garantir Docker habilitado e iniciado
-  ansible.builtin.systemd_service:
-    name: docker
-    enabled: true
-    state: started
-  become: true
+- name: Criar diretorios de configuracao rootless do Podman
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ ubuntu_desktop_home }}/.config/containers", mode: '0750'}
+    - {path: "{{ ubuntu_desktop_home }}/.config/containers/networks", mode: '0750'}
+    - {path: "{{ ubuntu_desktop_home }}/.local/share/containers/storage", mode: '0750'}
 
-- name: Adicionar usuario ao grupo Docker quando solicitado
-  ansible.builtin.user:
-    name: "{{ ubuntu_desktop_user }}"
-    groups: docker
-    append: true
-  become: true
-  when: host_tools_add_user_to_docker_group | bool
+- name: Instalar configuracoes rootless do Podman
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ ubuntu_desktop_home }}/.config/containers/{{ item.dest }}"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0644'
+  loop:
+    - {src: containers.conf.j2, dest: containers.conf}
+    - {src: storage.conf.j2, dest: storage.conf}
 
 - name: Consultar confianca do certificado HTTPS de desenvolvimento .NET
   ansible.builtin.command:
@@ -143,36 +149,24 @@
     'install ok installed' not in host_tools_package_validation.stdout
   when: not ansible_check_mode
 
-- name: Validar estado do servico Docker
+- name: Validar execucao rootless do Podman
   ansible.builtin.command:
-    argv: [systemctl, "{{ item }}", docker]
-  loop:
-    - is-active
-    - is-enabled
-  register: host_tools_docker_service_validation
-  changed_when: false
-  failed_when: host_tools_docker_service_validation.rc != 0
-  when: not ansible_check_mode
-
-- name: Consultar grupos do usuario do desktop
-  ansible.builtin.command:
-    argv: [id, -nG, "{{ ubuntu_desktop_user }}"]
-  register: host_tools_user_groups
+    argv: [podman, info, --format, "{{.Host.Security.Rootless}}"]
+  register: host_tools_podman_rootless_validation
   changed_when: false
   failed_when: >-
-    host_tools_user_groups.rc != 0 or
-    'docker' not in host_tools_user_groups.stdout.split()
-  when:
-    - not ansible_check_mode
-    - host_tools_add_user_to_docker_group | bool
+    host_tools_podman_rootless_validation.rc != 0 or
+    host_tools_podman_rootless_validation.stdout != 'true'
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  when: not ansible_check_mode
 
 - name: Validar ferramentas de desenvolvimento instaladas
   ansible.builtin.command:
     argv: "{{ item.command }}"
   loop:
-    - {name: Docker Engine, command: [docker, --version]}
-    - {name: Docker Buildx, command: [docker, buildx, version]}
-    - {name: Docker Compose, command: [docker, compose, version]}
+    - {name: Podman, command: [podman, --version]}
+    - {name: Podman Compose, command: [podman, compose, version]}
     - {name: PowerShell, command: [pwsh, --version]}
     - {name: Azure CLI, command: [az, version]}
     - {name: Terraform, command: [terraform, version]}
@@ -185,6 +179,8 @@
   register: host_tools_validation
   changed_when: false
   failed_when: host_tools_validation.rc != 0
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
   when: not ansible_check_mode
 
 - name: Validar SDKs .NET 8 e .NET 10

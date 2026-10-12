@@ -1,0 +1,16 @@
+# Configuracao rootless do Podman para {{ ubuntu_desktop_user }}.
+# Referencia: man 5 containers-storage.conf
+
+[storage]
+driver = "overlay"
+graphroot = "{{ ubuntu_desktop_home }}/.local/share/containers/storage"
+rootless_storage_path = "{{ ubuntu_desktop_home }}/.local/share/containers/storage"
+
+[storage.options]
+additionalimagestores = []
+pull_options = {enable_partial_images = "false", use_hard_links = "false", ostree_repos = ""}
+
+[storage.options.overlay]
+mountopt = "nodev"
+
+[storage.options.thinpool]

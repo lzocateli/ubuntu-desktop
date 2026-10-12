@@ -1,0 +1,15 @@
+# Configuracao rootless do Podman para {{ ubuntu_desktop_user }}.
+# Referencia: man 5 containers.conf
+
+[containers]
+tz = "America/Sao_Paulo"
+log_size_max = 10485760
+log_driver = "journald"
+pids_limit = 2048
+
+[engine]
+events_logger = "journald"
+
+[network]
+network_backend = "netavark"
+network_config_dir = "{{ ubuntu_desktop_home }}/.config/containers/networks"

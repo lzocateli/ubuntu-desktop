@@ -17,15 +17,15 @@
 | Campo | Valor |
 | --- | --- |
 | Status geral | Em andamento |
-| Ultima atualizacao | 2026-10-02 |
+| Ultima atualizacao | 2026-10-11 |
 | Progresso | 6 de 7 etapas concluidas |
-| Evidencias | Cobertura auditada, lint, syntax-check e contratos, incluindo wrappers Docker, aprovados |
-| Proximo passo | Aplicar check mode e testar idempotencia em VM descartavel |
+| Evidencias | Validacoes de 2026-10-02 sao historicas; mudancas para Ubuntu 26.04 e Podman rootless ainda precisam de validacao |
+| Proximo passo | Validar Podman rootless, check mode e idempotencia em VM Ubuntu 26.04 descartavel |
 
 ## Objetivo
 
 Automatizar, de forma idempotente e auditavel, a configuracao descrita em
-`Instalacao no Ubuntu Desktop.docx` para uma estacao Ubuntu Desktop 24.04 LTS
+`Instalacao no Ubuntu Desktop.docx` para uma estacao Ubuntu Desktop 26.04 LTS
 amd64. A automacao deve oferecer simulacao segura, validacao por ferramenta e
 documentacao operacional em `docs/`.
 
@@ -39,6 +39,7 @@ documentacao operacional em `docs/`.
 - Instalar aplicativos graficos por Flatpak quando apropriado.
 - Instalar Bruno pelo Flathub.
 - Instalar SDKs, CLIs, shells e servicos pelos canais oficiais no host.
+- Usar Podman rootless no lugar de Docker, com armazenamento no home do usuario.
 - Configurar o certificado HTTPS de desenvolvimento .NET para o usuario.
 - Executar Node, npm e npx em container e instalar o Copilot CLI standalone no host.
 - Manter tutoriais especificos em `docs/`; o `README.md` raiz sera o indice e a
@@ -62,7 +63,7 @@ remocao do Snap.
 
 1. Criar configuracao, inventario de exemplo e playbook principal.
 2. Implementar preflight, pacotes base, Flatpak e aplicativos.
-3. Implementar terminal, runtimes, containers, cloud, IaC e Kubernetes.
+3. Implementar terminal, runtimes, Podman rootless, cloud, IaC e Kubernetes.
 4. Implementar migracao e bloqueio opt-in do Snap.
 5. Criar bootstrap e wrapper com ajuda, dry-run, logs e validacao de entradas.
 6. Documentar cada ferramenta e atualizar o indice principal.
@@ -87,10 +88,11 @@ bats tests/bash/
 ```
 
 O check mode, a primeira aplicacao e a segunda aplicacao com `changed=0` serao
-executados apenas em VM Ubuntu Desktop 24.04 descartavel e autorizada. Containers
-nao comprovam integracao com systemd, GNOME, Docker Desktop ou sessao grafica.
+executados apenas em VM Ubuntu Desktop 26.04 descartavel e autorizada. Containers
+nao comprovam integracao com systemd, GNOME ou sessao grafica.
 
-Validacao executada em 2026-10-02 na imagem
+As evidencias abaixo foram obtidas em 2026-10-02, antes da migracao para Ubuntu
+26.04 e Podman; elas nao validam as mudancas atuais. Validacao executada na imagem
 `lzocateli/devops:cpu-ubuntu24.04`:
 
 - `bash -n`: aprovado para os dois wrappers.
@@ -102,11 +104,11 @@ Validacao executada em 2026-10-02 na imagem
 - Vault externo: argumentos aprovados, senha ausente da saida e modo inseguro bloqueado.
 - Cobertura de aplicativos: instalacao, configuracao minima e validacao auditadas.
 - Git do usuario: template Linux renderizado e analisado pelo proprio Git.
-- Pre-commit: diff staged enviado ao Gitleaks 8.30.1 com redacao e container read-only.
+- Pre-commit: diff staged enviado ao Gitleaks 8.30.1 com redacao e container read-only via Docker.
 - Ambiente 1Password: download, renderizacao persistente e rejeicao validados.
 - Bruno: ID oficial do Flathub incluido na lista declarativa.
 - Certificado .NET: consulta idempotente, mutacao por usuario e check mode validados estaticamente.
-- Bats: runtime Docker restrito a Node/npm/npx, com UID/GID e mounts validados.
+- Bats: runtime de containers restrito a Node/npm/npx, com UID/GID e mounts validados.
 - Copilot CLI: artefato standalone oficial fixado e validado por SHA-256.
 - Dry-run do bootstrap: aprovado, sem instalacao de ferramentas.
 
@@ -122,8 +124,8 @@ descartavel.
   confirmacao; a recuperacao reinstala `snapd` e remove o pin do APT.
 - Repositorios externos alteram a cadeia de confianca do APT. Chaves serao
   armazenadas em keyrings dedicados e repositorios terao origem explicita.
-- Docker concede privilegios elevados aos membros do grupo `docker`; essa adesao
-  sera opcional e documentada.
+- Podman rootless exige faixas subordinadas corretas em `/etc/subuid` e
+  `/etc/subgid`; os containers nao devem ser executados via daemon root.
 - Configuracoes de shell serao preservadas e alteradas apenas por blocos geridos.
 - O `.gitconfig` anterior sera preservado uma vez antes do estado gerenciado.
 - Credenciais, tokens, inventarios privados e logs nao serao versionados.

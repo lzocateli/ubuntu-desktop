@@ -19,7 +19,7 @@
     - [ZSH](#zsh)
     - [TMUX](#tmux)
     - [Tilix](#tilix)
-  - [Docker Engine e Compose](#docker-engine-e-compose)
+  - [Podman rootless e Compose](#podman-rootless-e-compose)
   - [Node em container e Copilot CLI local](#node-em-container-e-copilot-cli-local)
   - [PowerShell](#powershell)
   - [Ansible e pywinrm](#ansible-e-pywinrm)
@@ -39,7 +39,7 @@
 
 ## Objetivo
 
-Configurar uma estacao Ubuntu Desktop 24.04 LTS amd64 para desenvolvimento .NET,
+Configurar uma estacao Ubuntu Desktop 26.04 LTS amd64 para desenvolvimento .NET,
 automacao e administracao de infraestrutura. Aplicativos graficos independentes
 usam Flatpak; SDKs, CLIs, shells e servicos usam o host e canais oficiais.
 
@@ -49,17 +49,17 @@ uma instalacao idempotente e auditavel, use o
 
 ## Requisitos
 
-- Ubuntu Desktop 24.04 LTS amd64 com sessao GNOME.
+- Ubuntu Desktop 26.04 LTS amd64 com sessao GNOME.
 - Usuario comum com permissao de `sudo`.
 - Bash 4.4+, acesso HTTPS e pelo menos 20 GB livres.
-- Reinicio de sessao permitido para mudancas de shell, fontes e grupo Docker.
+- Reinicio de sessao permitido para mudancas de shell e fontes.
 
 Confirme o alvo antes de alterar o sistema:
 
 ```bash
 . /etc/os-release
 printf 'SO=%s versao=%s arquitetura=%s\n' "$NAME" "$VERSION_ID" "$(dpkg --print-architecture)"
-test "$ID" = ubuntu && test "$VERSION_ID" = 24.04
+test "$ID" = ubuntu && test "$VERSION_ID" = 26.04
 test "$(dpkg --print-architecture)" = amd64
 ```
 
@@ -197,46 +197,40 @@ tilix --version
 
 Abra o Tilix na sessao GNOME para validar atalhos, perfil e fonte.
 
-## Docker Engine e Compose
+## Podman rootless e Compose
 
-Configure o repositorio oficial e instale Engine, Buildx e Compose:
+Instale Podman e os componentes necessarios para containers rootless e Compose:
 
 ```bash
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl --fail --silent --show-error --location \
-  https://download.docker.com/linux/ubuntu/gpg \
-  --output /etc/apt/keyrings/docker.asc
-sudo chmod 0644 /etc/apt/keyrings/docker.asc
-printf '%s\n' \
-  'deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable' |
-  sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
 sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io \
-  docker-buildx-plugin docker-compose-plugin
+sudo apt install -y podman podman-compose uidmap slirp4netns fuse-overlayfs
 ```
 
-Valide sem alterar o grupo do usuario:
+Rootless depende de faixas subordinadas exclusivas para o usuario em
+`/etc/subuid` e `/etc/subgid`. Confira antes de executar containers:
 
 ```bash
-sudo systemctl is-enabled docker
-sudo systemctl is-active docker
-sudo docker version
-sudo docker compose version
+awk -F: -v user="$USER" '$1 == user { print FILENAME ":" $0 }' \
+  /etc/subuid /etc/subgid
+podman info --format '{{.Host.Security.Rootless}}'
+podman --version
+podman compose version
 ```
 
-Adicionar um usuario ao grupo `docker` concede privilegios equivalentes a root:
+O primeiro comando deve mostrar uma faixa em cada arquivo; o segundo deve
+imprimir `true`. As configuracoes geridas pelo Ansible ficam em
+`~/.config/containers/containers.conf` e `storage.conf`, com rede e
+armazenamento persistente sob o home. O Podman nao requer daemon de sistema nem
+grupo privilegiado. `fuse-overlayfs` fica disponivel como fallback quando o
+kernel nao puder montar overlay rootless nativo.
 
-```bash
-sudo usermod -aG docker "$USER"
-getent group docker
-```
-
-Finalize a sessao antes de testar sem `sudo`.
+Nao configure um socket compativel com Docker: os comandos usam `podman`
+diretamente e executam no usuario atual.
 
 ## Node em container e Copilot CLI local
 
 A automacao nao instala Node.js, npm ou npx no host. As funcoes `node`, `npm` e
-`npx` usam `lzocateli/devops:cpu-ubuntu24.04`, montam o diretorio atual em
+`npx` usam `docker.io/lzocateli/devops:cpu-ubuntu24.04`, montam o diretorio atual em
 `/workspace` e executam com o UID/GID do usuario:
 
 ```bash
@@ -244,6 +238,9 @@ node --version
 npm --version
 npx --version
 ```
+
+A tag Ubuntu 24.04 identifica somente a imagem de desenvolvimento; o sistema
+host suportado pela automacao e Ubuntu 26.04.
 
 O Copilot CLI 1.0.91 e instalado como binario standalone oficial em
 `/opt/copilot-cli/1.0.91/copilot`, com link em `/usr/local/bin/copilot`. O
@@ -256,8 +253,8 @@ copilot --version
 
 A autenticacao do Copilot ocorre diretamente no host por login interativo ou
 pelas variaveis `COPILOT_GITHUB_TOKEN`, `GH_TOKEN` e `GITHUB_TOKEN`. O runtime
-Docker nao recebe essas variaveis nem monta configuracoes do Copilot/GitHub CLI.
-O socket `/var/run/docker.sock` tambem nao e montado.
+Podman nao recebe essas variaveis nem monta configuracoes do Copilot/GitHub CLI.
+O socket Podman tambem nao e montado.
 
 ## PowerShell
 
@@ -269,7 +266,7 @@ sudo curl --fail --silent --show-error --location \
   https://packages.microsoft.com/keys/microsoft.asc \
   --output /etc/apt/keyrings/microsoft.asc
 printf '%s\n' \
-  'deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.asc] https://packages.microsoft.com/ubuntu/24.04/prod noble main' |
+  'deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.asc] https://packages.microsoft.com/ubuntu/26.04/prod resolute main' |
   sudo tee /etc/apt/sources.list.d/microsoft-prod.list >/dev/null
 sudo apt update
 sudo apt install -y powershell
@@ -307,7 +304,7 @@ sudo curl --fail --silent --show-error --location \
   https://packages.microsoft.com/keys/microsoft.asc \
   --output /etc/apt/keyrings/microsoft.asc
 printf '%s\n' \
-  'deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.asc] https://packages.microsoft.com/repos/azure-cli noble main' |
+  'deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.asc] https://packages.microsoft.com/repos/azure-cli resolute main' |
   sudo tee /etc/apt/sources.list.d/azure-cli.list >/dev/null
 sudo apt update
 sudo apt install -y azure-cli
@@ -324,7 +321,7 @@ sudo curl --fail --silent --show-error --location \
   https://apt.releases.hashicorp.com/gpg \
   --output /etc/apt/keyrings/hashicorp.asc
 printf '%s\n' \
-  'deb [arch=amd64 signed-by=/etc/apt/keyrings/hashicorp.asc] https://apt.releases.hashicorp.com noble main' |
+  'deb [arch=amd64 signed-by=/etc/apt/keyrings/hashicorp.asc] https://apt.releases.hashicorp.com resolute main' |
   sudo tee /etc/apt/sources.list.d/hashicorp.list >/dev/null
 sudo apt update
 sudo apt install -y terraform
@@ -484,7 +481,7 @@ operacao remove certificados existentes e fica reservada para recuperacao manual
 
 ## Visual Studio Code
 
-O VS Code e instalado no host para acessar diretamente SDKs, Docker, SSH,
+O VS Code e instalado no host para acessar diretamente SDKs, Podman, SSH,
 credenciais e arquivos locais:
 
 ```bash
@@ -510,7 +507,8 @@ Execute sem expor tokens ou dados de inventario:
 flatpak info com.usebruno.Bruno && flatpak info com.microsoft.Edge
 flatpak info org.remmina.Remmina
 git --version && ssh -V && zsh --version && tmux -V && tilix --version
-sudo systemctl is-active docker && sudo docker version && sudo docker compose version
+podman info --format '{{.Host.Security.Rootless}}' &&
+  podman --version && podman compose version
 pwsh --version && ansible-playbook --version && az version
 terraform version && kubectl version --client && gh --version
 op --version && uv --version && oh-my-posh version
@@ -531,8 +529,8 @@ reais, fora de container.
   configuracoes que serao apagadas.
 - Para reverter um repositorio, remova somente seu arquivo em
   `/etc/apt/sources.list.d/` e sua chave dedicada, depois execute `sudo apt update`.
-- Para remover o acesso ao Docker, execute `sudo gpasswd -d "$USER" docker` e
-  reinicie a sessao.
+- A role instala Podman, mas nao remove pacotes ou dados Docker existentes.
+  Revise containers, imagens e volumes antes de migrar ou remover Docker.
 - Restaure `.zshrc` de backup se a inicializacao do shell falhar; `zsh -f` inicia
   sem carregar a configuracao do usuario.
 - Nao ha rollback automatico de dados de aplicativos, credenciais ou plugins.

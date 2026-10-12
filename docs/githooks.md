@@ -11,7 +11,7 @@
   - [Validacao](#validacao)
   - [Seguranca e impacto](#seguranca-e-impacto)
   - [Troubleshooting](#troubleshooting)
-    - [Docker ausente](#docker-ausente)
+    - [Podman ausente](#podman-ausente)
     - [Gitleaks bloqueia o commit](#gitleaks-bloqueia-o-commit)
   - [Recuperacao](#recuperacao)
 
@@ -24,15 +24,15 @@ mesmo contrato usado pelo Inventory360Api.
 ## Dependencias
 
 - Git executado em Linux ou WSL.
-- Docker CLI com acesso a um daemon funcional.
+- Podman CLI com suporte rootless configurado.
 - Imagem `lzocateli/gitleaks:8.30.1` disponivel localmente ou acesso autorizado
   ao registry para o primeiro download.
 
 Prepare a dependencia explicitamente:
 
 ```bash
-docker pull lzocateli/gitleaks:8.30.1
-docker image inspect lzocateli/gitleaks:8.30.1 >/dev/null
+podman pull lzocateli/gitleaks:8.30.1
+podman image inspect lzocateli/gitleaks:8.30.1 >/dev/null
 ```
 
 ## Ativacao local
@@ -53,7 +53,7 @@ repositorios executassem hooks versionados automaticamente.
 
 Ao executar `git commit`, o hook:
 
-1. Confirma que `docker` existe no `PATH`; a ausencia bloqueia o commit.
+1. Confirma que `podman` existe no `PATH`; a ausencia bloqueia o commit.
 2. Gera `git diff --cached --no-ext-diff --no-textconv`.
 3. Envia o diff por stdin para um container efemero e read-only.
 4. Executa Gitleaks com `stdin --redact` para ocultar valores encontrados.
@@ -77,7 +77,7 @@ Para uma verificacao manual segura, adicione ao index apenas um fixture sem
 credenciais reais, execute o hook e depois restaure o index. Nunca crie um token
 valido para testar deteccao.
 
-O hook escreve somente no console. O Docker pode baixar a imagem quando ela nao
+O hook escreve somente no console. O Podman pode baixar a imagem quando ela nao
 existir; por isso o pull deve ser realizado separadamente durante a preparacao.
 
 ## Seguranca e impacto
@@ -92,16 +92,17 @@ existir; por isso o pull deve ser realizado separadamente durante a preparacao.
 
 ## Troubleshooting
 
-### Docker ausente
+### Podman ausente
 
-Sintoma: `Gitleaks obrigatorio: Docker nao foi encontrado no PATH.`
+Sintoma: `Gitleaks obrigatorio: Podman nao foi encontrado no PATH.`
 
 ```bash
-command -v docker
-docker version
+command -v podman
+podman info --format '{{.Host.Security.Rootless}}'
 ```
 
-Instale ou corrija o acesso ao Docker pela automacao antes de tentar o commit.
+Instale Podman e corrija os mapeamentos subordinados do usuario antes de tentar
+o commit.
 
 ### Gitleaks bloqueia o commit
 
@@ -123,5 +124,5 @@ Para desativar a integracao neste clone sem remover os arquivos versionados:
 git config --local --unset core.hooksPath
 ```
 
-Reative somente depois de corrigir Docker, imagem ou configuracao. A desativacao
+Reative somente depois de corrigir Podman, imagem ou configuracao. A desativacao
 remove uma barreira de seguranca e deve ser temporaria e justificada.

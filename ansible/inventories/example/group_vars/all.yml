@@ -6,7 +6,6 @@ terminal_git_user_name: zocatel
 terminal_git_user_email: zocateli_lincoln@cat.com
 flatpak_apps_install_firefox: false
 host_tools_install_1password: true
-host_tools_add_user_to_docker_group: false
 terminal_configure_zsh: true
 terminal_onepassword_env_enabled: false
 terminal_onepassword_env_account: ''
