@@ -37,11 +37,13 @@ bibliotecas e dependencias nao estao listados individualmente.
 
 | Categoria | Aplicativo ou ferramenta | Observacao |
 | --- | --- | --- |
+| Navegadores | Microsoft Edge e Google Chrome | Edge Flatpak e configurado como navegador padrao para HTML e links HTTP/HTTPS; Chrome via repositorio APT oficial |
 | Flatpak | Bruno, Microsoft Edge, Remmina, Flatseal e Extension Manager | Instalados em escopo de sistema pelo Flathub; Edge e instalado por padrao |
 | Firefox | Firefox Snap | Removido junto com Snap somente se a migracao destrutiva for explicitamente habilitada e confirmada; Firefox Flatpak nao e instalado por padrao |
 | Desktop | Visual Studio Code, Tilix e GNOME Software | VS Code pelo repositorio Microsoft; Tilix e GNOME Software via APT |
 | Senhas | 1Password Desktop e 1Password CLI | Ambos instalados por padrao; desabilite com `host_tools_install_1password: false` |
 | Containers | Podman rootless e Podman Compose | Sem daemon root; imagens e dados ficam no home do usuario |
+| VPN | WireGuard CLI e integracao grafica do NetworkManager; Mullvad Desktop e CLI | WireGuard pode ser configurado pelo GNOME Network Settings; Mullvad e instalado sem login nem conexao automatica |
 | Desenvolvimento | Git, OpenSSH Client, ZSH e tmux | O Ansible tambem configura Git e ZSH para o usuario |
 | SDKs e CLIs | .NET SDK 8 e 10, PowerShell, Azure CLI, Terraform, kubectl e GitHub CLI | kubectl usa o repositorio `v1.34` por padrao |
 | Terminal | uv, uvx, Oh My Posh, Oh My Zsh e MesloLGM Nerd Font | Instalados/configurados pelo perfil do usuario ou pelo Ansible |
@@ -51,7 +53,9 @@ bibliotecas e dependencias nao estao listados individualmente.
 Firefox Snap so e removido quando a migracao do Snap e solicitada com as duas
 confirmacoes exigidas; essa operacao tambem remove o Snap e seus dados
 configurados pela role. Firefox Flatpak pode ser instalado separadamente com
-`flatpak_apps_install_firefox: true`. O Edge Flatpak e instalado por padrao.
+`flatpak_apps_install_firefox: true`. O Edge Flatpak e instalado por padrao e
+definido como navegador principal nos handlers de HTML e HTTP/HTTPS; Chrome
+tambem fica instalado e pode ser aberto como alternativa.
 Veja a lista canonica e detalhes em
 [Aplicativos cobertos pelo Ansible](docs/aplicativos-ansible.md).
 

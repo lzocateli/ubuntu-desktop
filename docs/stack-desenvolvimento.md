@@ -83,6 +83,9 @@ flatpak info com.microsoft.Edge
 ```
 
 O pacote no Flathub e comunitario e nao possui suporte oficial da Microsoft.
+A automacao configura este Edge como navegador padrao para HTML e links HTTP e
+HTTPS; o Google Chrome tambem e instalado como navegador alternativo pelo
+repositorio APT oficial do Google.
 
 ### Bruno
 

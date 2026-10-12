@@ -28,7 +28,7 @@ Flatpak, o remote e cada aplicativo com `flatpak info`.
 | Aplicativo | ID | Configuracao minima | Estado padrao |
 | --- | --- | --- | --- |
 | Bruno | `com.usebruno.Bruno` | Instalacao de sistema pelo Flathub | Instalado |
-| Microsoft Edge | `com.microsoft.Edge` | Instalacao de sistema pelo Flathub | Instalado |
+| Microsoft Edge | `com.microsoft.Edge` | Instalacao de sistema pelo Flathub; padrao para HTML e links HTTP/HTTPS | Instalado |
 | Firefox | `org.mozilla.firefox` | Instalacao de sistema pelo Flathub | Opcional |
 | Remmina | `org.remmina.Remmina` | Instalacao de sistema pelo Flathub | Instalado |
 | Flatseal | `com.github.tchx84.Flatseal` | Instalacao de sistema pelo Flathub | Instalado |
@@ -44,7 +44,10 @@ versao anterior do projeto; dados de usuario nao sao apagados automaticamente.
 ## Ferramentas do host
 
 Pacotes APT sao conferidos com `dpkg-query`; CLIs possuem validacao de versao ou
-estado. Repositorios externos usam HTTPS, Deb822, keyrings e `signed-by`.
+estado. Repositorios externos usam HTTPS, Deb822, keyrings e `signed-by`. O Edge
+Flatpak e o navegador padrao do usuario para arquivos HTML e os esquemas HTTP e
+HTTPS; a preferencia e configurada em `~/.config/mimeapps.list` e validada com
+`xdg-mime`.
 
 | Ferramenta | Instalacao/configuracao minima | Validacao Ansible |
 | --- | --- | --- |
@@ -53,6 +56,11 @@ estado. Repositorios externos usam HTTPS, Deb822, keyrings e `signed-by`.
 | ZSH | Pacote Ubuntu e shell padrao opcional | `zsh --version` |
 | TMUX | Pacote Ubuntu | `tmux -V` |
 | Tilix | Pacote Ubuntu | `tilix --version` |
+| Google Chrome | Repositorio Google assinado para APT | `google-chrome --version` |
+| WireGuard CLI | `wireguard-tools` do Ubuntu | `wg --version` |
+| WireGuard grafico | NetworkManager nas Configuracoes de Rede do GNOME e pacote `network-manager-gnome` | Pacote instalado pelo `dpkg-query` |
+| Mullvad Desktop | Repositorio oficial Mullvad | Executavel `/opt/Mullvad VPN/mullvad-vpn` |
+| Mullvad CLI | Incluida no pacote oficial `mullvad-vpn` | `mullvad --help` |
 | Podman | Pacotes Ubuntu para runtime rootless; sem daemon de sistema | `podman --version`, `podman info` com `Rootless=true` |
 | Podman Compose | Provider Compose executado pelo usuario | `podman compose version` |
 | PowerShell | Repositorio Microsoft | `pwsh --version` |
@@ -71,6 +79,12 @@ O Podman e executado sem `sudo` e sem daemon root. A role gerencia
 `~/.config/containers/containers.conf` e `storage.conf`, mantendo redes e
 armazenamento de containers no home do usuario. O usuario precisa de faixas
 subordinadas configuradas em `/etc/subuid` e `/etc/subgid`.
+
+O cliente WireGuard oferece `wg`/`wg-quick` e configuracao grafica nas
+Configuracoes de Rede do GNOME via NetworkManager; nenhum tunel ou chave e
+criado pela automacao. O pacote Mullvad fornece aplicativo grafico e `mullvad`
+CLI, mas a role nao informa numero de conta, inicia sessao nem conecta a VPN.
+A instalacao do Chrome e do Mullvad adiciona repositorios APT oficiais dedicados.
 
 ## Terminal e shell
 

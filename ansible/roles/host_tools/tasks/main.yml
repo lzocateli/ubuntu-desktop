@@ -21,6 +21,8 @@
     - {file: kubernetes.asc, url: "https://pkgs.k8s.io/core:/stable:/{{ host_tools_kubernetes_repository_version }}/deb/Release.key"}
     - {file: githubcli.gpg, url: https://cli.github.com/packages/githubcli-archive-keyring.gpg}
     - {file: 1password.asc, url: https://downloads.1password.com/linux/keys/1password.asc}
+    - {file: google-chrome.asc, url: https://dl.google.com/linux/linux_signing_key.pub}
+    - {file: mullvad.asc, url: https://repository.mullvad.net/deb/mullvad-keyring.asc}
   loop_control:
     label: "{{ item.file }}"
   become: true
@@ -47,6 +49,8 @@
       key: kubernetes.asc
     - {name: github-cli, uri: https://cli.github.com/packages, suite: stable, components: [main], key: githubcli.gpg}
     - {name: 1password, uri: https://downloads.1password.com/linux/debian/amd64, suite: stable, components: [main], key: 1password.asc}
+    - {name: google-chrome, uri: https://dl.google.com/linux/chrome/deb, suite: stable, components: [main], key: google-chrome.asc}
+    - {name: mullvad, uri: https://repository.mullvad.net/deb/stable, suite: stable, components: [main], key: mullvad.asc}
   loop_control:
     label: "{{ item.name }}"
   become: true
@@ -167,6 +171,7 @@
   loop:
     - {name: Podman, command: [podman, --version]}
     - {name: Podman Compose, command: [podman, compose, version]}
+    - {name: WireGuard CLI, command: [wg, --version]}
     - {name: PowerShell, command: [pwsh, --version]}
     - {name: Azure CLI, command: [az, version]}
     - {name: Terraform, command: [terraform, version]}
@@ -208,3 +213,32 @@
   when:
     - not ansible_check_mode
     - host_tools_install_1password | bool
+
+- name: Validar versao do Google Chrome
+  ansible.builtin.command:
+    argv: [google-chrome, --version]
+  register: host_tools_chrome_validation
+  changed_when: false
+  failed_when: host_tools_chrome_validation.rc != 0
+  when: not ansible_check_mode
+
+- name: Validar cliente Mullvad CLI
+  ansible.builtin.command:
+    argv: [mullvad, --help]
+  register: host_tools_mullvad_cli_validation
+  changed_when: false
+  failed_when: host_tools_mullvad_cli_validation.rc != 0
+  when: not ansible_check_mode
+
+- name: Validar instalacao do aplicativo grafico Mullvad
+  ansible.builtin.stat:
+    path: /opt/Mullvad VPN/mullvad-vpn
+  register: host_tools_mullvad_desktop_validation
+  when: not ansible_check_mode
+
+- name: Confirmar aplicativo grafico Mullvad instalado
+  ansible.builtin.assert:
+    that:
+      - host_tools_mullvad_desktop_validation.stat.executable | default(false)
+    fail_msg: O executavel grafico do Mullvad nao foi instalado.
+  when: not ansible_check_mode

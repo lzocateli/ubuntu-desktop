@@ -92,3 +92,58 @@
   changed_when: false
   failed_when: flatpak_apps_removed_validation.rc == 0
   when: not ansible_check_mode
+
+- name: Configurar Microsoft Edge como navegador padrao do usuario
+  ansible.builtin.file:
+    path: "{{ ubuntu_desktop_home }}/.config"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0755'
+
+- name: Definir tipos de conteudo do Microsoft Edge como navegador padrao
+  community.general.ini_file:
+    path: "{{ ubuntu_desktop_home }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item }}"
+    value: com.microsoft.Edge.desktop
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0644'
+    no_extra_spaces: true
+  loop:
+    - text/html
+    - application/xhtml+xml
+    - x-scheme-handler/http
+    - x-scheme-handler/https
+
+- name: Consultar arquivo desktop exportado pelo Edge Flatpak
+  ansible.builtin.stat:
+    path: /var/lib/flatpak/exports/share/applications/com.microsoft.Edge.desktop
+  register: flatpak_apps_edge_desktop_entry
+  when: not ansible_check_mode
+
+- name: Validar arquivo desktop exportado pelo Edge Flatpak
+  ansible.builtin.assert:
+    that:
+      - flatpak_apps_edge_desktop_entry.stat.isreg | default(false)
+    fail_msg: O arquivo desktop do Microsoft Edge Flatpak nao foi exportado.
+  when: not ansible_check_mode
+
+- name: Validar navegador padrao para HTML e links HTTP/HTTPS
+  ansible.builtin.command:
+    argv: [xdg-mime, query, default, "{{ item }}"]
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    XDG_CONFIG_HOME: "{{ ubuntu_desktop_home }}/.config"
+  loop:
+    - text/html
+    - application/xhtml+xml
+    - x-scheme-handler/http
+    - x-scheme-handler/https
+  register: flatpak_apps_default_browser_validation
+  changed_when: false
+  failed_when: >-
+    flatpak_apps_default_browser_validation.rc != 0 or
+    flatpak_apps_default_browser_validation.stdout != 'com.microsoft.Edge.desktop'
+  when: not ansible_check_mode

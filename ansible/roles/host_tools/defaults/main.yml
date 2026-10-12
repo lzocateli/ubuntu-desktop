@@ -9,11 +9,15 @@ host_tools_packages:
   - dotnet-sdk-8.0
   - dotnet-sdk-10.0
   - fuse-overlayfs
+  - google-chrome-stable
   - gh
   - kubectl
+  - mullvad-vpn
+  - network-manager-gnome
   - podman
   - podman-compose
   - powershell
   - slirp4netns
   - terraform
   - uidmap
+  - wireguard-tools
