@@ -154,14 +154,16 @@ bash scripts/bash/run-ansible.sh \
   --inventory ansible/inventories/private/lab/hosts.yml \
   --limit workstation01 \
   --secrets-dir "$HOME/.microsoft/usersecrets/ansible" \
-  --remove-snap --dry-run --verbose
+  --tags all --remove-snap --dry-run --verbose
 ```
 
 Crie o inventario privado a partir de `ansible/inventories/example/` e revise o
 plano. A simulacao inclui a fase Snap, mas nao executa as remocoes destrutivas.
-Para aplicar, confirme antes que os aplicativos substitutos funcionam e que os
-dados importantes foram preservados; a operacao remove o Snap e dados
-associados, sem rollback automatico. O diretório
+A execucao real padrao abaixo inclui a migracao Snap e remove os aplicativos,
+componentes e dados Snap conhecidos, inclusive os instalados originalmente pelo
+Ubuntu; verifique que os substitutos funcionam e preserve dados importantes
+antes de prosseguir. A operacao purga `snapd`, bloqueia sua reinstalacao e nao
+possui rollback automatico. O diretório
 `$HOME/.microsoft/usersecrets/ansible` deve conter `vault.yml` e
 `vault-password`. Crie os arquivos fora do repositorio com permissoes restritas:
 
@@ -201,8 +203,12 @@ bash scripts/bash/run-ansible.sh \
   --inventory ansible/inventories/private/lab/hosts.yml \
   --limit workstation01 \
   --secrets-dir "$HOME/.microsoft/usersecrets/ansible" \
-  --remove-snap --confirm-remove-snap
+  --tags all --remove-snap --confirm-remove-snap
 ```
+
+`--tags all` aplica tambem as demais roles na mesma execucao; sem essa tag, o
+wrapper limita a execucao a migracao Snap. Para configurar a estacao sem remover
+Snap, omita `--remove-snap` e `--confirm-remove-snap`.
 
 Mantenha `vault.yml` e `vault-password` fora do repositorio em
 `~/.microsoft/usersecrets/ansible` no Linux ou

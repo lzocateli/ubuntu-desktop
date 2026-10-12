@@ -62,7 +62,9 @@
 - name: Interromper se houver Snaps desconhecidos
   ansible.builtin.assert:
     that:
-      - snap_migration_inventory_remaining.stdout_lines | default([]) | length <= 1
+      - >-
+        snap_migration_inventory_remaining.stdout_lines[1:] | default([])
+        | reject('match', '^snapd\s+') | list | length == 0
     fail_msg: >-
       Ainda existem Snaps instalados. Revise-os antes de purgar snapd:
       {{ snap_migration_inventory_remaining.stdout_lines | default([]) }}
@@ -98,6 +100,7 @@
 - name: Atualizar cache APT apos bloquear Snap
   ansible.builtin.apt:
     update_cache: true
+    cache_valid_time: 3600
   become: true
 
 - name: Validar bloqueio do Snap no APT

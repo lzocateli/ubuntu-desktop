@@ -5,12 +5,18 @@ snap_migration_applications:
   - firefox
   - snap-store
   - firmware-updater
+  - desktop-security-center
+  - hwctl
+  - prompting-client
 snap_migration_dependencies:
   - snapd-desktop-integration
   - gnome-42-2204
+  - gnome-46-2404
   - gtk-common-themes
   - bare
   - core22
+  - mesa-2404
+  - core24
 snap_migration_paths:
   - "{{ ubuntu_desktop_home }}/snap"
   - /snap

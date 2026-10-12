@@ -455,13 +455,15 @@ bash scripts/bash/run-ansible.sh \
   --remove-snap --dry-run --verbose
 ```
 
-Aplicacao real, sem remover Snap:
+Aplicacao real padrao, incluindo migracao destrutiva do Snap:
 
 ```bash
 test -n "${OP_SERVICE_ACCOUNT_TOKEN:-}"
 bash scripts/bash/run-ansible.sh \
   --inventory ansible/inventories/private/lab/hosts.yml \
-  --limit workstation01
+  --limit workstation01 \
+  --tags all \
+  --remove-snap --confirm-remove-snap
 ```
 
 O exemplo acima presume `op` instalado no controller e acesso ao vault
@@ -473,6 +475,10 @@ log. Se as chaves SSH nao fizerem parte da execucao, configure
 Para remover o Snap, revise primeiro a simulacao da secao [Remocao do
 Snap](#remocao-do-snap); a execucao real exige conjuntamente
 `--remove-snap --confirm-remove-snap` e remove dados sem rollback automatico.
+O wrapper limita uma execucao com `--remove-snap` somente a migracao Snap por
+padrao. Inclua `--tags all` para reaplicar tambem as demais roles na mesma
+execucao, como no comando padrao acima. Para uma aplicacao sem remover Snap,
+omita ambos os parametros.
 
 O wrapper nao eleva privilegios no controller. O playbook usa `become` somente
 nas tasks que alteram o sistema. A conexao remota, o shell, as fontes, o profile
@@ -506,7 +512,8 @@ bash scripts/bash/run-ansible.sh \
   --remove-snap --dry-run --verbose
 ```
 
-Depois de confirmar que Edge/Firefox e os demais substitutos funcionam, execute:
+Depois de confirmar que Edge e os demais substitutos funcionam e que nao precisa
+dos aplicativos nem dos dados Snap do Ubuntu, execute:
 
 ```bash
 test -n "${OP_SERVICE_ACCOUNT_TOKEN:-}"
@@ -516,9 +523,12 @@ bash scripts/bash/run-ansible.sh \
   --remove-snap --confirm-remove-snap
 ```
 
-Essa execucao remove Snaps conhecidos, purga `snapd`, exclui diretorios de dados
-e cria `/etc/apt/preferences.d/no-snapd.pref` com prioridade `-1`. Dados removidos
-nao possuem rollback automatico.
+Essa execucao remove os aplicativos e componentes listados na role, purga
+`snapd`, exclui diretorios de dados e cria
+`/etc/apt/preferences.d/no-snapd.pref` com prioridade `-1`. Qualquer Snap
+instalado que nao esteja nessa lista faz a role parar antes de purgar `snapd`;
+revise e inclua explicitamente novos itens na lista da role apos autorizacao.
+Dados removidos nao possuem rollback automatico.
 
 ## Tags
 
