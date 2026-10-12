@@ -203,12 +203,12 @@ run_playbook() {
     command+=(--extra-vars "snap_migration_remove_snap=true")
     command+=(--extra-vars "snap_migration_confirm_remove_snap=true")
   fi
-  if [[ -n "${effective_tags}" ]]; then
-    command+=(--tags "${effective_tags}")
-  fi
   if [[ -n "${SECRETS_DIR}" ]]; then
     command+=(--extra-vars "@${VAULT_FILE}")
     command+=(--vault-password-file "${VAULT_PASSWORD_FILE}")
+  fi
+  if [[ -n "${effective_tags}" ]]; then
+    command+=(--tags "${effective_tags}")
   fi
 
   if [[ "${VERBOSE}" == true ]]; then

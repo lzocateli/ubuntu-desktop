@@ -24,7 +24,8 @@ com execucao previsivel, simulacao segura e documentacao operacional.
 Automacao Ansible implementada para Ubuntu Desktop 26.04 LTS amd64. O projeto
 instala aplicativos Flatpak, ferramentas de terminal, Podman rootless, .NET, PowerShell,
 Azure CLI, Terraform, kubectl, GitHub CLI, 1Password, VS Code e uv. A migracao do
-Snap e opt-in e exige confirmacao explicita.
+Snap e opt-in e exige confirmacao explicita. Montagens persistentes de discos
+sao configuradas manualmente, fora do Ansible; o playbook nao formata discos.
 
 Aplicacao, check mode e idempotencia ainda precisam ser comprovados em VM Ubuntu
 Desktop 26.04 descartavel. Nao execute mutacoes no desktop de trabalho sem
@@ -43,6 +44,7 @@ bibliotecas e dependencias nao estao listados individualmente.
 | Desktop | Visual Studio Code, Tilix e GNOME Software | VS Code pelo repositorio Microsoft; Tilix e GNOME Software via APT |
 | Senhas | 1Password Desktop e 1Password CLI | Ambos instalados por padrao; desabilite com `host_tools_install_1password: false` |
 | Containers | Podman rootless e Podman Compose | Sem daemon root; imagens e dados ficam no home do usuario |
+| Armazenamento | Discos ext4 | Montagem persistente configurada manualmente em `/etc/fstab`; nao gerenciada pelo Ansible |
 | VPN | WireGuard CLI e integracao grafica do NetworkManager; Mullvad Desktop e CLI | WireGuard pode ser configurado pelo GNOME Network Settings; Mullvad e instalado sem login nem conexao automatica |
 | Desenvolvimento | Git, OpenSSH Client, ZSH e tmux | O Ansible tambem configura Git e ZSH para o usuario |
 | SDKs e CLIs | .NET SDK 8 e 10, PowerShell, Azure CLI, Terraform, kubectl e GitHub CLI | kubectl usa o repositorio `v1.34` por padrao |

@@ -133,13 +133,14 @@ Node/npm; autenticacao e configuracao permanecem no perfil normal do usuario.
 Estas ferramentas executam no controller Linux/WSL e nao sao aplicativos do
 desktop alvo. O [bootstrap](../scripts/bash/bootstrap-ansible.sh) instala e
 valida `uv`, `ansible-core` 2.19.2, `pywinrm` 0.5.0 e a collection
-`community.general` 11.3.0.
+`community.general` 11.3.0. O bootstrap compara as versoes esperadas.
 
 ## Limites da validacao
 
 - Comandos e metadados comprovam instalacao, nao login em servicos externos.
 - Aplicativos graficos precisam ser abertos em uma sessao GNOME real.
 - Remmina e Podman precisam de testes funcionais conforme hardware e rede.
+- Montagens persistentes de discos sao configuradas fora do Ansible, diretamente no alvo.
 - O Ansible precisa acessar o documento como o usuario durante a aplicacao real.
 - Check mode remoto, primeira aplicacao e segunda aplicacao com `changed=0`
   permanecem obrigatorios em VM descartavel autorizada.

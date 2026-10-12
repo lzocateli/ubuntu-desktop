@@ -10,6 +10,7 @@
 - [Secrets e Ansible Vault](#secrets-e-ansible-vault)
 - [Configuracao Git do usuario](#configuracao-git-do-usuario)
 - [Ferramentas de desenvolvimento](#ferramentas-de-desenvolvimento)
+- [Montagem persistente de disco](#montagem-persistente-de-disco)
 - [Chaves SSH e NuGet](#chaves-ssh-e-nuget)
 - [Ambiente Linux pelo 1Password](#ambiente-linux-pelo-1password)
 - [Parametros e variaveis](#parametros-e-variaveis)
@@ -91,6 +92,10 @@ bash scripts/bash/bootstrap-ansible.sh \
   --ansible-version 2.19.2 \
   --pywinrm-version 0.5.0
 ```
+
+Ao concluir, o bootstrap compara as versoes de `uv`, `ansible-core`, `pywinrm`
+e da collection `community.general` com as versoes esperadas. Uma divergencia
+retorna falha.
 
 ## Inventario
 
@@ -277,6 +282,51 @@ O mesmo runtime define `SSL_CERT_DIR` para que clientes OpenSSL reconhecam o
 certificado HTTPS criado por `.NET 10`. A role `host_tools` consulta a confianca
 antes de executar `dotnet dev-certs https --trust`; em check mode, apenas a
 consulta ocorre e a mutacao e informada como pendente.
+
+## Montagem persistente de disco
+
+O Ansible nao formata nem monta discos. Para configurar manualmente um volume
+ext4 ja existente no Ubuntu, obtenha o UUID e confirme modelo, rotulo e
+dispositivo antes de editar `/etc/fstab`:
+
+```bash
+lsblk -f
+sudo mkdir -p /mnt/kingston
+sudoedit /etc/fstab
+```
+
+Adicione uma unica linha usando o UUID conferido:
+
+```fstab
+UUID=<UUID-CONFERIDO> /mnt/kingston ext4 defaults,nofail 0 2
+```
+
+Valide a entrada antes de reiniciar. Se o desktop ja montou o disco via GNOME,
+feche arquivos abertos e desmonte essa montagem antes de ativa-lo no novo caminho:
+
+```bash
+sudo findmnt --verify --verbose
+udisksctl unmount --block-device /dev/disk/by-id/ID-DO-DISCO
+sudo systemctl daemon-reload
+sudo mount /mnt/kingston
+findmnt --mountpoint /mnt/kingston
+```
+
+Substitua `ID-DO-DISCO` pelo link `/dev/disk/by-id` confirmado para o seu
+dispositivo. A entrada fstab passa a ser usada no proximo boot; nao monte o
+mesmo volume em dois caminhos ao mesmo tempo.
+
+Para acesso de escrita pelo usuario atual, ajuste a propriedade do diretorio
+somente depois de confirmar que o volume certo esta montado:
+
+```bash
+sudo chown "$USER:$USER" /mnt/kingston
+```
+
+Esses comandos nao formatam o disco. Se `/etc/fstab` estiver incorreto, remova
+ou corrija a linha antes de reiniciar. Nao monte simultaneamente o mesmo ext4
+em dois caminhos; desmonte a montagem grafica existente antes de montar em
+`/mnt/kingston`.
 
 ## Chaves SSH e NuGet
 

@@ -9,6 +9,7 @@ readonly ARTIFACTS_DIR="${REPO_ROOT}/artifacts"
 readonly DEFAULT_ANSIBLE_VERSION="2.19.2"
 readonly DEFAULT_PYWINRM_VERSION="0.5.0"
 readonly DEFAULT_UV_VERSION="0.8.22"
+readonly DEFAULT_COMMUNITY_GENERAL_VERSION="11.3.0"
 
 DRY_RUN=false
 VERBOSE=false
@@ -141,14 +142,19 @@ show_command() {
 }
 
 install_uv() {
-  local archive url install_dir
-  if command -v uv >/dev/null; then
-    log INFO "uv ja esta disponivel: $(uv --version)"
-    return
-  fi
-
+  local archive url install_dir current_version
   url="https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-x86_64-unknown-linux-gnu.tar.gz"
   install_dir="${HOME}/.local/bin"
+  export PATH="${install_dir}:${PATH}"
+  if command -v uv >/dev/null; then
+    current_version="$(uv --version)"
+    if [[ "${current_version}" == "uv ${UV_VERSION}" ]]; then
+      log INFO "uv ja esta disponivel: ${current_version}"
+      return
+    fi
+    log INFO "uv sera atualizado de ${current_version} para ${UV_VERSION}."
+  fi
+
   show_command curl --fail --location --silent --show-error "${url}"
   show_command tar -xzf "uv-${UV_VERSION}.tar.gz"
   if [[ "${DRY_RUN}" == true ]]; then
@@ -187,13 +193,40 @@ validate_installation() {
     log INFO "simulacao concluida; nenhuma ferramenta foi instalada."
     return
   fi
-  uv --version | tee -a "${LOG_FILE}"
-  ansible-playbook --version | tee -a "${LOG_FILE}"
-  ansible-galaxy collection list community.general | tee -a "${LOG_FILE}"
+  local uv_output ansible_output community_general_version
+  uv_output="$(uv --version)"
+  [[ "${uv_output}" == "uv ${UV_VERSION}" ]] || {
+    log ERROR "uv esperado ${UV_VERSION}; encontrado: ${uv_output}"
+    return 1
+  }
+  log INFO "${uv_output}"
+
+  ansible_output="$(ansible-playbook --version)"
+  [[ "${ansible_output}" == *"ansible [core ${ANSIBLE_VERSION}]"* ]] || {
+    log ERROR "ansible-core esperado ${ANSIBLE_VERSION}; versao instalada divergente."
+    return 1
+  }
+  log INFO "${ansible_output%%$'\n'*}"
+
+  community_general_version="$(
+    ansible-galaxy collection list community.general |
+      awk '$1 == "community.general" {print $2; exit}'
+  )"
+  [[ "${community_general_version}" == "${DEFAULT_COMMUNITY_GENERAL_VERSION}" ]] || {
+    log ERROR "community.general esperado ${DEFAULT_COMMUNITY_GENERAL_VERSION}; encontrado: ${community_general_version:-ausente}"
+    return 1
+  }
+  log INFO "community.general ${community_general_version}"
+
   local tool_dir
   tool_dir="$(uv tool dir)"
-  "${tool_dir}/ansible-core/bin/python" -c 'import winrm; print(winrm.__version__)' |
-    tee -a "${LOG_FILE}"
+  local pywinrm_version
+  pywinrm_version="$("${tool_dir}/ansible-core/bin/python" -c 'import winrm; print(winrm.__version__)')"
+  [[ "${pywinrm_version}" == "${PYWINRM_VERSION}" ]] || {
+    log ERROR "pywinrm esperado ${PYWINRM_VERSION}; encontrado: ${pywinrm_version}"
+    return 1
+  }
+  log INFO "pywinrm ${pywinrm_version}"
   log INFO "bootstrap validado com sucesso."
 }
 
