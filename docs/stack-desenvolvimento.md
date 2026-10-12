@@ -21,6 +21,7 @@
     - [Tilix](#tilix)
   - [Podman rootless e Compose](#podman-rootless-e-compose)
   - [Node em container e Copilot CLI local](#node-em-container-e-copilot-cli-local)
+  - [Claude Code CLI](#claude-code-cli)
   - [PowerShell](#powershell)
   - [Ansible e pywinrm](#ansible-e-pywinrm)
   - [Azure CLI](#azure-cli)
@@ -258,6 +259,21 @@ A autenticacao do Copilot ocorre diretamente no host por login interativo ou
 pelas variaveis `COPILOT_GITHUB_TOKEN`, `GH_TOKEN` e `GITHUB_TOKEN`. O runtime
 Podman nao recebe essas variaveis nem monta configuracoes do Copilot/GitHub CLI.
 O socket Podman tambem nao e montado.
+
+## Claude Code CLI
+
+O playbook instala o Claude Code pelo repositorio APT oficial da Anthropic no
+canal `stable`, validando o fingerprint da chave de assinatura antes de confiar
+no repositorio. Verifique a instalacao e inicie uma sessao interativa:
+
+```bash
+claude --version
+claude
+```
+
+A autenticacao ocorre interativamente no primeiro uso. O Ansible nao armazena
+credenciais nem inicia sessoes. Atualizacoes sao entregues pelo APT, nao pelo
+atualizador automatico do Claude Code.
 
 ## PowerShell
 
@@ -527,6 +543,7 @@ op --version && uv --version && oh-my-posh version
 dotnet --list-sdks && code --version
 dotnet dev-certs https --check --trust
 node --version && npm --version && npx --version && copilot --version
+claude --version
 ```
 
 Valide aplicativos graficos abrindo-os em uma sessao GNOME. Camera, audio,

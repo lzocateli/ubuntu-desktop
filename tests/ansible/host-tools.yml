@@ -13,4 +13,7 @@
           - "'network-manager' in host_tools_packages"
           - "'network-manager-gnome' in host_tools_packages"
           - "'wireguard-tools' not in host_tools_packages"
+          - "'claude-code' in host_tools_packages"
+          - host_tools_claude_code_apt_uri == 'https://downloads.claude.ai/claude-code/apt/stable'
+          - host_tools_claude_code_key_fingerprint == '31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE'
           - host_tools_packages | unique | length == host_tools_packages | length

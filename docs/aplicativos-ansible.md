@@ -79,6 +79,7 @@ defaults da role.
 | Terraform | Repositorio HashiCorp | `terraform version` |
 | kubectl | Repositorio Kubernetes `v1.34` por padrao | `kubectl version --client` |
 | GitHub CLI | Repositorio oficial | `gh --version` |
+| Claude Code CLI | Repositorio APT oficial Anthropic, canal `stable` e chave validada por fingerprint | `claude --version` |
 | 1Password Desktop | Repositorio oficial | `1password --version` |
 | 1Password CLI | Repositorio oficial | `op --version` |
 | Visual Studio Code | Repositorio Microsoft no host | `code --version` |
@@ -109,6 +110,11 @@ O repositorio Microsoft APT configurado para Ubuntu 26.04 nao publica o pacote
 PowerShell. A role instala o tarball oficial Linux x64 do PowerShell 7.6.6 com
 SHA-256 verificado em `/opt/powershell/7.6.6` e cria `/usr/local/bin/pwsh`.
 Atualize a versao e o hash juntos nos defaults da role.
+
+Claude Code e instalado pelo repositorio APT oficial da Anthropic no canal
+`stable`. Antes de habilitar o repositorio, a role valida o fingerprint da chave
+de assinatura oficial. Atualizacoes do pacote chegam pelo fluxo normal do APT;
+a automacao nao autentica nem inicia sessoes do Claude Code.
 
 ## Terminal e shell
 

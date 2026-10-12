@@ -50,6 +50,7 @@ bibliotecas e dependencias nao estao listados individualmente.
 | SDKs e CLIs | .NET SDK 8 e 10, PowerShell, Azure CLI, Terraform, kubectl e GitHub CLI | kubectl usa o repositorio `v1.34` por padrao |
 | Terminal | uv, uvx, Oh My Posh, Oh My Zsh e MesloLGM Nerd Font | Instalados/configurados pelo perfil do usuario ou pelo Ansible |
 | Copilot | GitHub Copilot CLI 1.0.91 | Binario standalone instalado no host |
+| Claude Code | Claude Code CLI | Repositorio APT oficial Anthropic no canal `stable` |
 | Node.js | Node, npm e npx | Disponiveis por funcoes shell que executam a imagem `docker.io/lzocateli/devops:cpu-ubuntu24.04` via Podman; nao sao instalados no host |
 
 Firefox Snap so e removido quando a migracao do Snap e solicitada com as duas

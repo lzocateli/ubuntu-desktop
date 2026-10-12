@@ -27,9 +27,32 @@
     - {file: 1password.asc, url: https://downloads.1password.com/linux/keys/1password.asc}
     - {file: google-chrome.asc, url: https://dl.google.com/linux/linux_signing_key.pub}
     - {file: mullvad.asc, url: https://repository.mullvad.net/deb/mullvad-keyring.asc}
+    - {file: claude-code.asc, url: https://downloads.claude.ai/keys/claude-code.asc}
   loop_control:
     label: "{{ item.file }}"
   become: true
+
+- name: Consultar fingerprint da chave oficial do Claude Code
+  ansible.builtin.command:
+    argv:
+      - gpg
+      - --show-keys
+      - --with-colons
+      - --fingerprint
+      - /etc/apt/keyrings/claude-code.asc
+  register: host_tools_claude_code_key
+  changed_when: false
+  failed_when: host_tools_claude_code_key.rc != 0
+  when: not ansible_check_mode
+
+- name: Validar fingerprint da chave oficial do Claude Code
+  ansible.builtin.assert:
+    that:
+      - >-
+        ('FPR:::::::::' ~ (host_tools_claude_code_key_fingerprint | upper) ~ ':')
+        in (host_tools_claude_code_key.stdout_lines | map('upper') | list)
+    fail_msg: A chave APT do Claude Code nao corresponde ao fingerprint oficial da Anthropic.
+  when: not ansible_check_mode
 
 - name: Configurar repositorios APT oficiais
   ansible.builtin.deb822_repository:
@@ -55,6 +78,11 @@
     - {name: 1password, uri: https://downloads.1password.com/linux/debian/amd64, suite: stable, components: [main], key: 1password.asc}
     - {name: google-chrome, uri: https://dl.google.com/linux/chrome/deb, suite: stable, components: [main], key: google-chrome.asc}
     - {name: mullvad, uri: https://repository.mullvad.net/deb/stable, suite: stable, components: [main], key: mullvad.asc}
+    - name: claude-code
+      uri: "{{ host_tools_claude_code_apt_uri }}"
+      suite: stable
+      components: [main]
+      key: claude-code.asc
   loop_control:
     label: "{{ item.name }}"
   become: true
@@ -299,6 +327,7 @@
     - {name: Terraform, command: [terraform, version]}
     - {name: kubectl, command: [kubectl, version, --client]}
     - {name: GitHub CLI, command: [gh, --version]}
+    - {name: Claude Code CLI, command: [claude, --version]}
     - {name: VS Code, command: [code, --version]}
     - {name: .NET SDKs, command: [dotnet, --list-sdks]}
   loop_control:
