@@ -33,9 +33,16 @@ Flatpak, o remote e cada aplicativo com `flatpak info`.
 | Remmina | `org.remmina.Remmina` | Instalacao de sistema pelo Flathub | Instalado |
 | Flatseal | `com.github.tchx84.Flatseal` | Instalacao de sistema pelo Flathub | Instalado |
 | Extension Manager | `com.mattjakeman.ExtensionManager` | Instalacao de sistema pelo Flathub | Instalado |
+| WhatsApp (ZapZap) | `com.rtosta.zapzap` | Cliente nao oficial do WhatsApp Web pelo Flathub | Instalado |
+| Telegram Desktop | `org.telegram.desktop` | Instalacao de sistema pelo Flathub | Instalado |
 
 Firefox e habilitado com `flatpak_apps_install_firefox: true`. Login, RDP e
 extensoes GNOME exigem validacao manual na sessao grafica.
+
+WhatsApp e acessado pelo ZapZap, nao por um aplicativo oficial da Meta para Linux.
+Abra `flatpak run com.rtosta.zapzap` na sessao grafica e vincule o dispositivo
+pelo celular. Para Telegram, abra `flatpak run org.telegram.desktop` e autentique
+sua conta. A automacao nao gerencia credenciais nem mensagens.
 
 OBS Studio, Spotify e KeePassXC foram excluidos do escopo. A automacao garante
 que seus Flatpaks estejam ausentes, inclusive em maquinas configuradas por uma
@@ -127,6 +134,21 @@ dos itens, aliases e limites do check mode.
 Node e npm nao sao instalados no host. Seus wrappers usam um home isolado e nao
 montam o socket Podman. O Copilot CLI e instalado localmente sem depender de
 Node/npm; autenticacao e configuracao permanecem no perfil normal do usuario.
+
+Os comandos `lh` (`ls -lha`) e `lhr` (busca recursiva de arquivos) sao definidos na integracao
+compartilhada `~/.local/lib/ubuntu-desktop/development-shell.sh`, carregada por
+`~/.profile`, `~/.bashrc` e `~/.zshrc`. Sem argumentos, `lh` lista a pasta atual
+com arquivos ocultos e tamanhos legiveis; `lhr` lista todos os arquivos regulares
+a partir da pasta atual, incluindo arquivos ocultos, sem seguir links simbolicos.
+Com argumentos, `lhr` filtra pelo nome do arquivo com um ou mais padroes,
+combinados por OU, e mostra os resultados com `ls -lha`. Sem correspondencias,
+nao imprime resultados e retorna zero; falhas de acesso retornam erro.
+No ZSH, use `lhr *.yml *.json`: o alias usa `noglob` somente nesse comando.
+No Bash, use `lhr '*.yml' '*.json'` para evitar a expansao antecipada pelo shell.
+Os padroes correspondem ao nome, nao ao caminho completo; `lh` continua aceitando
+caminhos adicionais. Abra um novo terminal ou execute
+`. "$HOME/.local/lib/ubuntu-desktop/development-shell.sh"` para carregar os aliases
+na sessao atual. Eles apenas listam arquivos e nao exigem privilegios nem Podman.
 
 ## Dependencias do controller
 

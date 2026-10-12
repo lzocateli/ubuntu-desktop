@@ -1,0 +1,17 @@
+---
+- name: Validar defaults dos aplicativos de mensagens
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../ansible/roles/flatpak_apps/defaults/main.yml
+  tasks:
+    - name: Garantir instalacao e ausencia de conflito com remocoes
+      ansible.builtin.assert:
+        that:
+          - "'com.rtosta.zapzap' in flatpak_apps_packages"
+          - "'org.telegram.desktop' in flatpak_apps_packages"
+          - flatpak_apps_packages | intersect(flatpak_apps_removed_packages) | length == 0
+          - flatpak_apps_packages | unique | length == flatpak_apps_packages | length
+          - flatpak_apps_remote == 'flathub'
+          - flatpak_apps_remote_url.startswith('https://')

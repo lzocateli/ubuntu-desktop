@@ -8,6 +8,8 @@ flatpak_apps_packages:
   - org.remmina.Remmina
   - com.github.tchx84.Flatseal
   - com.mattjakeman.ExtensionManager
+  - com.rtosta.zapzap
+  - org.telegram.desktop
 flatpak_apps_removed_packages:
   - com.obsproject.Studio
   - com.spotify.Client

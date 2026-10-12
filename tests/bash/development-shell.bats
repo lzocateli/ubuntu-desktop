@@ -39,6 +39,69 @@ EOF
   [ "${status}" -eq 0 ]
 }
 
+@test "aliases de listagem usam argumentos corretos no Bash apos recarregar" {
+  run bash -O expand_aliases -c $'. "$RUNTIME"\n. "$RUNTIME"\nls() { printf "%s\\n" "$@"; }\nlh'
+
+  [ "${status}" -eq 0 ]
+  [ "${output}" = '-lha' ]
+}
+
+@test "aliases de listagem usam argumentos corretos no ZSH apos recarregar" {
+  run zsh -f <<'ZSH'
+. "$RUNTIME"
+. "$RUNTIME"
+ls() { printf '%s\n' "$@"; }
+lh
+ZSH
+
+  [ "${status}" -eq 0 ]
+  [ "${output}" = '-lha' ]
+}
+
+@test "lhr busca multiplos padroes recursivamente sem glob local no ZSH" {
+  workspace="${BATS_TEST_TMPDIR}/workspace com espaco"
+  export workspace
+  mkdir -p "${workspace}/subpasta"
+  touch "${workspace}/subpasta/config.yml" "${workspace}/subpasta/dados com espaco.json" \
+    "${workspace}/subpasta/.oculto.json" "${workspace}/subpasta/ignorado.txt"
+
+  run zsh -f -c '. "$RUNTIME"; . "$RUNTIME"; . /dev/stdin' <<'ZSH'
+cd "$workspace"
+lhr *.yml *.json
+ZSH
+
+  [ "${status}" -eq 0 ]
+  [[ "${output}" == *"./subpasta/config.yml"* ]]
+  [[ "${output}" == *"./subpasta/dados com espaco.json"* ]]
+  [[ "${output}" == *"./subpasta/.oculto.json"* ]]
+  [[ "${output}" != *"ignorado.txt"* ]]
+}
+
+@test "lhr preserva padroes no Bash e nao lista a pasta quando nao encontra arquivos" {
+  workspace="${BATS_TEST_TMPDIR}/workspace"
+  export workspace
+  mkdir -p "${workspace}/subpasta"
+  touch "${workspace}/local.yml" "${workspace}/subpasta/remoto.yml" \
+    "${workspace}/subpasta/remoto.json"
+
+  run bash -O expand_aliases -c '. "$RUNTIME"; . "$RUNTIME"; . /dev/stdin' <<'BASH'
+cd "$workspace"
+lhr '*.yml' '*.json'
+BASH
+
+  [ "${status}" -eq 0 ]
+  [[ "${output}" == *"./local.yml"* ]]
+  [[ "${output}" == *"./subpasta/remoto.yml"* ]]
+  [[ "${output}" == *"./subpasta/remoto.json"* ]]
+
+  for shell in bash zsh; do
+    run "${shell}" -c '. "$RUNTIME"; cd "$workspace"; _ubuntu_desktop_lhr "*.inexistente"'
+
+    [ "${status}" -eq 0 ]
+    [ -z "${output}" ]
+  done
+}
+
 @test "node usa Podman com imagem, usuario e workspace" {
   create_podman_stub
   workspace="${BATS_TEST_TMPDIR}/workspace com espaco"

@@ -1,5 +1,27 @@
 export SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs"
 
+alias lh='ls -lha'
+
+_ubuntu_desktop_lhr() {
+  local pattern
+  local -a find_args=(-false)
+
+  for pattern in "$@"; do
+    find_args+=(-o -name "$pattern")
+  done
+  if (( $# == 0 )); then
+    find_args=(-name '*')
+  fi
+
+  command find . -type f '(' "${find_args[@]}" ')' -exec ls -lha -- '{}' +
+}
+
+if [ -n "${ZSH_VERSION:-}" ]; then
+  alias lhr='noglob _ubuntu_desktop_lhr'
+else
+  alias lhr='_ubuntu_desktop_lhr'
+fi
+
 _ubuntu_desktop_devops_run() {
   if ! command -v podman >/dev/null 2>&1; then
     printf 'podman nao esta disponivel no host.\n' >&2
