@@ -21,6 +21,9 @@
       o vault e o nome do documento.
   when: terminal_onepassword_env_enabled | bool
 
+- name: Configurar chaves SSH do 1Password
+  ansible.builtin.include_tasks: ssh.yml
+
 - name: Criar cache persistente da automacao
   ansible.builtin.file:
     path: /var/cache/ubuntu-desktop
@@ -155,6 +158,9 @@
     group: "{{ ubuntu_desktop_user }}"
     mode: '0600'
     validate: /usr/bin/git config --file %s --list
+
+- name: Configurar feeds NuGet do usuario
+  ansible.builtin.include_tasks: nuget.yml
 
 - name: Criar diretorio de fontes do usuario
   ansible.builtin.file:

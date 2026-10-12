@@ -138,7 +138,7 @@ sudo apt install -y git
 git --version
 ```
 
-O Ansible cria `/home/zocatel/.gitconfig`, modo `0600`, com identidade definida
+O Ansible cria `/home/lzocateli/.gitconfig`, modo `0600`, com identidade definida
 no inventario, line endings Linux, branch `main`, fetch/push seguros, rebase,
 `rerere` e integracao do VS Code. Um arquivo anterior e preservado uma unica vez
 em `~/.gitconfig.pre-ansible`. Valide:

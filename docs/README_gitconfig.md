@@ -21,7 +21,7 @@
 ## Objetivo
 
 Explicar cada parametro do `.gitconfig` criado pela role Ansible `terminal` no
-Ubuntu Desktop 26.04 LTS. O estado foi definido para o usuario `zocatel`, com
+Ubuntu Desktop 26.04 LTS. O estado foi definido para o usuario `lzocateli`, com
 line endings Linux, operacoes explicitas e integracao com Visual Studio Code.
 
 O template de origem e
@@ -29,7 +29,7 @@ O template de origem e
 
 ## Arquivo e propriedade
 
-O Ansible cria `/home/zocatel/.gitconfig` com proprietario e grupo `zocatel` e
+O Ansible cria `/home/lzocateli/.gitconfig` com proprietario e grupo `lzocateli` e
 modo `0600`. O proprio Git valida a sintaxe antes da substituicao. Se ja existir
 um arquivo, uma copia unica e preservada em `~/.gitconfig.pre-ansible`.
 

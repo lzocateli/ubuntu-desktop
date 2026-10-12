@@ -1,0 +1,37 @@
+---
+- name: Criar diretorio de configuracao NuGet do usuario
+  ansible.builtin.file:
+    path: "{{ ubuntu_desktop_home }}/.nuget/NuGet"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0700'
+
+- name: Configurar fontes nuget.org e nugettest
+  ansible.builtin.template:
+    src: NuGet.Config.j2
+    dest: "{{ ubuntu_desktop_home }}/.nuget/NuGet/NuGet.Config"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0600'
+    diff: false
+
+- name: Validar fontes NuGet configuradas apos instalar .NET
+  ansible.builtin.command:
+    argv:
+      - dotnet
+      - nuget
+      - list
+      - source
+      - --configfile
+      - "{{ ubuntu_desktop_home }}/.nuget/NuGet/NuGet.Config"
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    DOTNET_CLI_HOME: "{{ ubuntu_desktop_home }}"
+  register: terminal_nuget_sources
+  changed_when: false
+  failed_when: >-
+    terminal_nuget_sources.rc != 0 or
+    'nuget.org' not in terminal_nuget_sources.stdout or
+    'nugettest' not in terminal_nuget_sources.stdout
+  when: not ansible_check_mode

@@ -10,6 +10,7 @@
 - [Secrets e Ansible Vault](#secrets-e-ansible-vault)
 - [Configuracao Git do usuario](#configuracao-git-do-usuario)
 - [Ferramentas de desenvolvimento](#ferramentas-de-desenvolvimento)
+- [Chaves SSH e NuGet](#chaves-ssh-e-nuget)
 - [Ambiente Linux pelo 1Password](#ambiente-linux-pelo-1password)
 - [Parametros e variaveis](#parametros-e-variaveis)
 - [Uso rapido](#uso-rapido)
@@ -44,7 +45,7 @@ Alvo:
 
 - Ubuntu Desktop 26.04 LTS amd64.
 - Python disponivel para o Ansible.
-- Usuario SSH/local `zocatel`, home `/home/zocatel` e membro do grupo `sudo`.
+- Usuario SSH/local `lzocateli`, home `/home/lzocateli` e membro do grupo `sudo`.
 - Faixas subordinadas do usuario configuradas em `/etc/subuid` e `/etc/subgid`.
 - Acesso HTTPS aos repositorios oficiais e ao Flathub.
 - Sessao GNOME para validacao funcional de aplicativos graficos.
@@ -169,7 +170,7 @@ uso. O conteudo dos arquivos nao e escrito no log.
 
 ## Configuracao Git do usuario
 
-A role `terminal` cria `/home/zocatel/.gitconfig` com proprietario `zocatel` e
+A role `terminal` cria `/home/lzocateli/.gitconfig` com proprietario `lzocateli` e
 modo `0600`. Se um arquivo anterior existir, a primeira aplicacao preserva uma
 copia em `~/.gitconfig.pre-ansible`; execucoes posteriores nao sobrescrevem essa
 copia. O Ansible valida o arquivo com o proprio comando `git config` antes de
@@ -222,6 +223,44 @@ O mesmo runtime define `SSL_CERT_DIR` para que clientes OpenSSL reconhecam o
 certificado HTTPS criado por `.NET 10`. A role `host_tools` consulta a confianca
 antes de executar `dotnet dev-certs https --trust`; em check mode, apenas a
 consulta ocorre e a mutacao e informada como pendente.
+
+## Chaves SSH e NuGet
+
+Na execucao real, a role `terminal` usa `op` no controller Ansible para ler o
+campo `private key` dos itens configurados no vault `Automation`. O controller
+precisa ter o 1Password CLI e a variavel de ambiente
+`OP_SERVICE_ACCOUNT_TOKEN` definida com acesso somente de leitura ao vault. O
+token nao deve ser salvo no inventario nem passado como argumento de linha de
+comando. As consultas ao 1Password e a instalacao das chaves sao omitidas em
+check mode.
+
+Os itens padrao sao `proxmox`, `interserver-st56165`, `cat-devops-zocatel`,
+`pve-brazildevops`, `hostinger-root` e `hostinger-brazildevops`. As chaves sao
+gravadas em `~/.ssh/` com modo `0600`, dentro de um diretorio `0700`; respostas
+e diffs das tarefas que manipulam material privado sao ocultados. O bloco
+gerenciado em `~/.ssh/config` preserva outras entradas e configura:
+
+| Alias | Destino | Usuario | Chave |
+| --- | --- | --- | --- |
+| `hostinger-root` | `187.77.231.228` | `root` | `hostinger-root` |
+| `hostinger-brazildevops` | `187.77.231.228` | `brazildevops` | `hostinger-brazildevops` |
+| `interserver-st56165` | `216.158.237.158` | `st56165` | `interserver-st56165` |
+| `proxmox01`-`proxmox06` | `172.16.100.10`-`172.16.100.15` | `root` | `proxmox` |
+| `pve01`-`pve05` | nomes DNS `pve01`-`pve05` | `root` | `pve-brazildevops` |
+
+A chave `cat-devops-zocatel` e instalada, mas nao recebe alias porque nao ha
+destino SSH associado a ela. As conexoes usam a porta 22 e nao desabilitam a
+verificacao de host key. A validacao real usa `ssh -G` para confirmar a
+expansao de host, usuario, identidade e porta sem abrir conexao de rede.
+
+Depois da instalacao do .NET, a role cria
+`~/.nuget/NuGet/NuGet.Config` com permissao `0600` e as fontes nuget.org
+(`https://api.nuget.org/v3/index.json`) e nugettest
+(`https://int.nugettest.org/`). A configuracao nao inclui credenciais; o
+endpoint nugettest precisa permitir acesso sem autenticacao ou ser configurado
+separadamente. A validacao real usa `dotnet nuget list source`. Check mode nao
+grava nem consulta as chaves; a configuracao SSH e NuGet e simulada sem expor
+diffs.
 
 ## Ambiente Linux pelo 1Password
 
@@ -329,9 +368,9 @@ Variaveis principais:
 
 | Variavel | Padrao | Impacto |
 | --- | --- | --- |
-| `ubuntu_desktop_user` | `zocatel` | Usuario da conexao e dono da configuracao de desktop |
-| `ubuntu_desktop_home` | `/home/zocatel` | Home validado no `getent` |
-| `terminal_git_user_name` | `zocatel` no inventario | Nome registrado nos commits |
+| `ubuntu_desktop_user` | `lzocateli` | Usuario da conexao e dono da configuracao de desktop |
+| `ubuntu_desktop_home` | `/home/lzocateli` | Home validado no `getent` |
+| `terminal_git_user_name` | `zocatel` no inventario | Nome de autor registrado nos commits, independente do login Linux |
 | `terminal_git_user_email` | E-mail definido no inventario | E-mail registrado nos commits |
 | `flatpak_apps_install_firefox` | `false` | Instala Firefox Flatpak |
 | `host_tools_install_1password` | `true` | Instala Desktop e CLI |
@@ -344,6 +383,10 @@ Variaveis principais:
 | `terminal_onepassword_env_account` | Vazio | Conta `op` opcional |
 | `terminal_onepassword_env_vault` | Vazio | Nome/ID do vault do documento |
 | `terminal_onepassword_env_document` | Vazio | Nome/ID do documento `.env` |
+| `terminal_ssh_op_vault` | Vazio | Vault do 1Password que contem as chaves SSH |
+| `terminal_ssh_key_items` | `[]` | Itens cujos campos `private key` serao instalados |
+| `terminal_ssh_hosts` | `[]` | Aliases, destinos, usuarios e nomes das chaves SSH |
+| `terminal_nuget_test_source` | `https://int.nugettest.org/` | URL da fonte NuGet adicional |
 | `host_tools_kubernetes_repository_version` | `v1.34` | Serie menor de kubectl |
 
 ## Uso rapido
@@ -361,16 +404,23 @@ bash scripts/bash/run-ansible.sh \
 Aplicacao real, sem remover Snap:
 
 ```bash
+test -n "${OP_SERVICE_ACCOUNT_TOKEN:-}"
 bash scripts/bash/run-ansible.sh \
   --inventory ansible/inventories/private/lab/hosts.yml \
   --limit workstation01
 ```
 
+O exemplo acima presume `op` instalado no controller e acesso ao vault
+configurado. Forneca o token no ambiente via gerenciador de secrets do
+controller; nao o grave no shell profile, inventario, argumento de processo ou
+log. Se as chaves SSH nao fizerem parte da execucao, configure
+`terminal_ssh_key_items: []` e `terminal_ssh_hosts: []` no inventario privado.
+
 O wrapper nao eleva privilegios no controller. O playbook usa `become` somente
 nas tasks que alteram o sistema. A conexao remota, o shell, as fontes, o profile
-e demais configuracoes pessoais usam `zocatel`; pacotes, repositorios, Flatpaks
+e demais configuracoes pessoais usam `lzocateli`; pacotes, repositorios, Flatpaks
 de sistema e servicos usam `sudo` a partir desse usuario. O preflight falha se o
-usuario conectado nao for `zocatel`, se o home divergir ou se faltar o grupo
+usuario conectado nao for `lzocateli`, se o home divergir ou se faltar o grupo
 `sudo`.
 
 ## Simulacao
@@ -419,7 +469,7 @@ nao possuem rollback automatico.
 | `base` | Pacotes Ubuntu e terminal |
 | `flatpak` | Flathub e aplicativos |
 | `host_tools` | Podman rootless, SDKs e CLIs |
-| `terminal` | Shell, uv, prompt e fonte |
+| `terminal` | Shell, Git, chaves SSH, fontes NuGet, uv, prompt e fonte |
 | `development` | Ferramentas do host e terminal |
 | `snap_migration` | Remocao opt-in do Snap |
 
@@ -446,9 +496,11 @@ politica local e apague logs antigos apenas apos revisar seu conteudo.
 
 - Repositorios externos usam HTTPS, keyrings dedicados e `signed-by`.
 - O playbook nao desabilita TLS nem verificacao de host SSH.
+- Chaves SSH sao material privado em texto claro no disco; proteja o home com
+  criptografia de disco e mantenha os modos `0700`/`0600` gerenciados pela role.
 - Podman executa containers como o usuario, sem daemon root ou grupo privilegiado.
 - Rootless requer UID/GID subordinados em `/etc/subuid` e `/etc/subgid`.
-- `.gitconfig` tem modo `0600`, nao contem tokens e pertence a `zocatel`.
+- `.gitconfig` tem modo `0600`, nao contem tokens e pertence a `lzocateli`.
 - `.zshrc` recebe somente um bloco identificado e idempotente.
 - Handlers atualizam cache APT e fontes somente quando necessario.
 - Remocao do Snap exige duas opcoes e uma execucao separada.

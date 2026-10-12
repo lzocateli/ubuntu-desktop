@@ -1,9 +1,9 @@
 ---
-ubuntu_desktop_user: zocatel
-ubuntu_desktop_home: /home/zocatel
+ubuntu_desktop_user: lzocateli
+ubuntu_desktop_home: /home/lzocateli
 
 terminal_git_user_name: zocatel
-terminal_git_user_email: zocateli_lincoln@cat.com
+terminal_git_user_email: lzocateli@outlook.com
 flatpak_apps_install_firefox: false
 host_tools_install_1password: true
 terminal_configure_zsh: true
@@ -11,6 +11,30 @@ terminal_onepassword_env_enabled: false
 terminal_onepassword_env_account: ''
 terminal_onepassword_env_vault: ''
 terminal_onepassword_env_document: ''
+terminal_ssh_op_vault: Automation
+terminal_ssh_key_items:
+  - proxmox
+  - interserver-st56165
+  - cat-devops-zocatel
+  - pve-brazildevops
+  - hostinger-root
+  - hostinger-brazildevops
+terminal_ssh_hosts:
+  - {alias: interserver-st56165, hostname: 216.158.237.158, user: st56165, identity_file: interserver-st56165}
+  - {alias: hostinger-root, hostname: 187.77.231.228, user: root, identity_file: hostinger-root}
+  - {alias: hostinger-brazildevops, hostname: 187.77.231.228, user: brazildevops, identity_file: hostinger-brazildevops}
+  - {alias: proxmox01, hostname: 172.16.100.10, user: root, identity_file: proxmox}
+  - {alias: proxmox02, hostname: 172.16.100.11, user: root, identity_file: proxmox}
+  - {alias: proxmox03, hostname: 172.16.100.12, user: root, identity_file: proxmox}
+  - {alias: proxmox04, hostname: 172.16.100.13, user: root, identity_file: proxmox}
+  - {alias: proxmox05, hostname: 172.16.100.14, user: root, identity_file: proxmox}
+  - {alias: proxmox06, hostname: 172.16.100.15, user: root, identity_file: proxmox}
+  - {alias: pve01, hostname: pve01, user: root, identity_file: pve-brazildevops}
+  - {alias: pve02, hostname: pve02, user: root, identity_file: pve-brazildevops}
+  - {alias: pve03, hostname: pve03, user: root, identity_file: pve-brazildevops}
+  - {alias: pve04, hostname: pve04, user: root, identity_file: pve-brazildevops}
+  - {alias: pve05, hostname: pve05, user: root, identity_file: pve-brazildevops}
+terminal_nuget_test_source: https://int.nugettest.org/
 
 snap_migration_remove_snap: false
 snap_migration_confirm_remove_snap: false

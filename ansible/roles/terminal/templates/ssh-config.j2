@@ -1,0 +1,7 @@
+{% for host in terminal_ssh_hosts %}
+Host {{ host.alias }}
+    HostName {{ host.hostname }}
+    User {{ host.user }}
+    IdentityFile "{{ ubuntu_desktop_home }}/.ssh/{{ host.identity_file }}"
+    IdentitiesOnly yes
+{% endfor %}

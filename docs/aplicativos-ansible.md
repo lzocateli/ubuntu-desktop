@@ -16,9 +16,9 @@ pela automacao. O alvo suportado e Ubuntu Desktop 26.04 LTS amd64. Todas as
 validacoes pos-instalacao rodam no modo real; em check mode, o Ansible apresenta
 o plano sem exigir que binarios ainda nao instalados existam.
 
-O usuario da estacao e `zocatel`, com home `/home/zocatel` e acesso pelo grupo
+O usuario da estacao e `lzocateli`, com home `/home/lzocateli` e acesso pelo grupo
 `sudo`. Pacotes, repositorios, Flatpaks de sistema e servicos exigem elevacao;
-configuracoes pessoais, shell, fontes e `~/.profile` pertencem a `zocatel`.
+configuracoes pessoais, shell, fontes e `~/.profile` pertencem a `lzocateli`.
 
 ## Aplicativos Flatpak
 
@@ -48,7 +48,7 @@ estado. Repositorios externos usam HTTPS, Deb822, keyrings e `signed-by`.
 
 | Ferramenta | Instalacao/configuracao minima | Validacao Ansible |
 | --- | --- | --- |
-| Git | Pacote Ubuntu e `~/.gitconfig` Linux gerenciado para `zocatel` | Versao, sintaxe, identidade, LF e branch inicial |
+| Git | Pacote Ubuntu e `~/.gitconfig` Linux gerenciado para `lzocateli` | Versao, sintaxe, identidade, LF e branch inicial |
 | OpenSSH Client | Pacote Ubuntu | `ssh -V` |
 | ZSH | Pacote Ubuntu e shell padrao opcional | `zsh --version` |
 | TMUX | Pacote Ubuntu | `tmux -V` |
@@ -83,11 +83,16 @@ subordinadas configuradas em `/etc/subuid` e `/etc/subgid`.
 | Git do usuario | VS Code, fluxo de branches, diff/merge, rebase e `rerere` | Valores essenciais via `git config --file` |
 | MesloLGM Nerd Font | Fonte no perfil do usuario e atualização do cache | Familia presente em `fc-list` |
 | Ambiente 1Password | Ansible baixa o `.env` e grava exports em `~/.profile` | Sintaxe do profile e testes com stub |
+| Chaves SSH | `op` no controller le os itens do vault e a role grava `~/.ssh/config` e as chaves com permissoes restritas | `ssh -G` valida host, usuario, identidade e porta |
+| Fontes NuGet | `~/.nuget/NuGet/NuGet.Config` define nuget.org e nugettest depois da instalacao do .NET | `dotnet nuget list source` |
 | Node, npm e npx | Funcoes que executam na imagem `docker.io/lzocateli/devops:cpu-ubuntu24.04` via Podman rootless | Funcoes carregadas em Bash e ZSH |
 | Copilot CLI | Binario Linux x64 oficial fixado e verificado por SHA-256 | `copilot --version` no host |
 
 O ambiente 1Password e opt-in e exige `terminal_onepassword_env_enabled: true`,
 vault e documento. Consulte o [guia operacional](automacao-ansible.md#ambiente-linux-pelo-1password).
+As chaves SSH exigem `op` e `OP_SERVICE_ACCOUNT_TOKEN` no controller; veja
+[chaves SSH e NuGet](automacao-ansible.md#chaves-ssh-e-nuget) para o mapeamento
+dos itens, aliases e limites do check mode.
 Node e npm nao sao instalados no host. Seus wrappers usam um home isolado e nao
 montam o socket Podman. O Copilot CLI e instalado localmente sem depender de
 Node/npm; autenticacao e configuracao permanecem no perfil normal do usuario.

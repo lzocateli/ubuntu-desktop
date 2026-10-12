@@ -1,0 +1,149 @@
+---
+- name: Validar mapeamento das chaves SSH
+  ansible.builtin.assert:
+    that:
+      - terminal_ssh_key_items | unique | length == terminal_ssh_key_items | length
+      - >-
+        terminal_ssh_hosts | map(attribute='alias') | list | unique | length
+        == terminal_ssh_hosts | length
+      - >-
+        terminal_ssh_hosts | map(attribute='identity_file') | list
+        | difference(terminal_ssh_key_items) | length == 0
+    fail_msg: >-
+      Cada alias SSH deve ser unico e referenciar um item presente em
+      terminal_ssh_key_items; itens de chave tambem devem ser unicos.
+  when:
+    - terminal_ssh_key_items | length > 0 or terminal_ssh_hosts | length > 0
+
+- name: Validar acesso 1Password no controller
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'OP_SERVICE_ACCOUNT_TOKEN') | length > 0
+    fail_msg: Defina OP_SERVICE_ACCOUNT_TOKEN no ambiente do controller Ansible.
+  delegate_to: localhost
+  run_once: true
+  when:
+    - not ansible_check_mode
+    - terminal_ssh_key_items | length > 0
+
+- name: Validar 1Password CLI no controller
+  ansible.builtin.command:
+    argv: [op, --version]
+  delegate_to: localhost
+  run_once: true
+  register: terminal_ssh_op_version
+  changed_when: false
+  failed_when: terminal_ssh_op_version.rc != 0
+  when:
+    - not ansible_check_mode
+    - terminal_ssh_key_items | length > 0
+
+- name: Baixar chaves SSH do 1Password
+  ansible.builtin.command:
+    argv:
+      - op
+      - item
+      - get
+      - "{{ item }}"
+      - --vault
+      - "{{ terminal_ssh_op_vault }}"
+      - --fields
+      - label=private key
+      - --reveal
+  environment:
+    OP_SERVICE_ACCOUNT_TOKEN: "{{ lookup('ansible.builtin.env', 'OP_SERVICE_ACCOUNT_TOKEN') }}"
+  delegate_to: localhost
+  run_once: true
+  loop: "{{ terminal_ssh_key_items }}"
+  loop_control:
+    label: "{{ item }}"
+  register: terminal_ssh_private_keys
+  changed_when: false
+  no_log: true
+  when:
+    - not ansible_check_mode
+    - terminal_ssh_key_items | length > 0
+
+- name: Validar formato das chaves SSH baixadas
+  ansible.builtin.assert:
+    that:
+      - item.stdout is match('^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----')
+    fail_msg: O item {{ item.item }} nao retornou uma chave privada OpenSSH valida.
+  loop: "{{ terminal_ssh_private_keys.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  no_log: true
+  when:
+    - not ansible_check_mode
+    - terminal_ssh_key_items | length > 0
+
+- name: Criar diretorio SSH do usuario
+  ansible.builtin.file:
+    path: "{{ ubuntu_desktop_home }}/.ssh"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0700'
+  when:
+    - terminal_ssh_key_items | length > 0 or terminal_ssh_hosts | length > 0
+
+- name: Instalar chaves privadas SSH
+  ansible.builtin.copy:
+    content: "{{ item.stdout }}"
+    dest: "{{ ubuntu_desktop_home }}/.ssh/{{ item.item }}"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0600'
+  loop: "{{ terminal_ssh_private_keys.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  no_log: true
+  diff: false
+  when:
+    - not ansible_check_mode
+    - terminal_ssh_key_items | length > 0
+
+- name: Configurar aliases SSH gerenciados
+  ansible.builtin.blockinfile:
+    path: "{{ ubuntu_desktop_home }}/.ssh/config"
+    create: true
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0600'
+    marker: '# {mark} ANSIBLE UBUNTU DESKTOP SSH'
+    block: "{{ lookup('ansible.builtin.template', 'ssh-config.j2') }}"
+  diff: false
+  when: terminal_ssh_hosts | length > 0
+
+- name: Validar sintaxe e expansao dos aliases SSH
+  ansible.builtin.command:
+    argv:
+      - ssh
+      - -G
+      - -F
+      - "{{ ubuntu_desktop_home }}/.ssh/config"
+      - "{{ item.alias }}"
+  loop: "{{ terminal_ssh_hosts }}"
+  loop_control:
+    label: "{{ item.alias }}"
+  register: terminal_ssh_config_validation
+  changed_when: false
+  failed_when: >-
+    terminal_ssh_config_validation.rc != 0 or
+    ('hostname ' ~ item.hostname) not in terminal_ssh_config_validation.stdout_lines or
+    ('user ' ~ item.user) not in terminal_ssh_config_validation.stdout_lines or
+    ('identityfile ' ~ ubuntu_desktop_home ~ '/.ssh/' ~ item.identity_file)
+    not in terminal_ssh_config_validation.stdout_lines or
+    ('port 22') not in terminal_ssh_config_validation.stdout_lines
+  when:
+    - not ansible_check_mode
+    - terminal_ssh_hosts | length > 0
+
+- name: Informar limitacao do check mode das chaves SSH
+  ansible.builtin.debug:
+    msg: >-
+      Check mode nao consulta o 1Password nem instala chaves privadas;
+      .ssh/config e simulado sem exibir diff.
+  when:
+    - ansible_check_mode
+    - terminal_ssh_key_items | length > 0 or terminal_ssh_hosts | length > 0
