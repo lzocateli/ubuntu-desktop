@@ -6,6 +6,12 @@ terminal_onepassword_env_enabled: false
 terminal_onepassword_env_account: ''
 terminal_onepassword_env_vault: ''
 terminal_onepassword_env_document: ''
+terminal_wireguard_enabled: false
+terminal_wireguard_vault: "{{ terminal_ssh_op_vault }}"
+terminal_wireguard_item: VPN UDM Wireguard
+terminal_wireguard_profiles:
+  - {document: WireGuard-Users-VISION.conf, interface: wg-users}
+  - {document: WireGuard-Admin-VISION-ADMIN.conf, interface: wg-admin}
 terminal_ssh_op_vault: ''
 terminal_ssh_key_items: []
 terminal_ssh_hosts: []

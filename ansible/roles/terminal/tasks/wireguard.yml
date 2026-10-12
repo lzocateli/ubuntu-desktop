@@ -1,0 +1,185 @@
+---
+- name: Validar configuracao dos perfis WireGuard
+  ansible.builtin.assert:
+    that:
+      - host_tools_install_1password | default(false) | bool
+      - terminal_wireguard_vault | length > 0
+      - terminal_wireguard_item | length > 0
+      - terminal_wireguard_profiles | length == 2
+      - >-
+        terminal_wireguard_profiles | map(attribute='document') | unique | length == 2
+      - >-
+        terminal_wireguard_profiles | map(attribute='interface') | unique | length == 2
+    fail_msg: >-
+      A instalacao dos perfis WireGuard exige 1Password, vault, item e os dois
+      nomes de arquivos configurados.
+  when: terminal_wireguard_enabled | bool
+
+- name: Validar token de servico do 1Password no controller
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'OP_SERVICE_ACCOUNT_TOKEN') | length > 0
+    fail_msg: Defina OP_SERVICE_ACCOUNT_TOKEN no ambiente do controller Ansible.
+  delegate_to: localhost
+  run_once: true
+  when:
+    - terminal_wireguard_enabled | bool
+    - not ansible_check_mode
+
+- name: Validar 1Password CLI no controller para WireGuard
+  ansible.builtin.command:
+    argv: [op, --version]
+  delegate_to: localhost
+  run_once: true
+  register: terminal_wireguard_op_version
+  changed_when: false
+  failed_when: terminal_wireguard_op_version.rc != 0
+  when:
+    - terminal_wireguard_enabled | bool
+    - not ansible_check_mode
+
+- name: Criar diretorio privado dos perfis WireGuard
+  ansible.builtin.file:
+    path: "{{ ubuntu_desktop_home }}/.config/wireguard"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0700'
+  when: terminal_wireguard_enabled | bool
+
+- name: Baixar anexos WireGuard do 1Password
+  ansible.builtin.command:
+    argv:
+      - op
+      - read
+      - --no-newline
+      - "op://{{ terminal_wireguard_vault }}/{{ terminal_wireguard_item }}/{{ item.document }}"
+  environment:
+    OP_SERVICE_ACCOUNT_TOKEN: "{{ lookup('ansible.builtin.env', 'OP_SERVICE_ACCOUNT_TOKEN') }}"
+  delegate_to: localhost
+  run_once: true
+  loop: "{{ terminal_wireguard_profiles }}"
+  loop_control:
+    label: "{{ item.document }}"
+  register: terminal_wireguard_downloads
+  changed_when: false
+  no_log: true
+  when:
+    - terminal_wireguard_enabled | bool
+    - not ansible_check_mode
+
+- name: Validar perfis WireGuard baixados
+  ansible.builtin.assert:
+    that:
+      - item.stdout is match('(?s)^\\[Interface\\]')
+    fail_msg: >-
+      O anexo {{ item.item.document }} nao parece ser uma configuracao WireGuard valida.
+  loop: "{{ terminal_wireguard_downloads.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.document }}"
+  no_log: true
+  when:
+    - terminal_wireguard_enabled | bool
+    - not ansible_check_mode
+
+- name: Instalar perfis WireGuard no diretorio do usuario
+  ansible.builtin.copy:
+    content: "{{ item.stdout }}"
+    dest: "{{ ubuntu_desktop_home }}/.config/wireguard/{{ item.item.document }}"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0600'
+  loop: "{{ terminal_wireguard_downloads.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  no_log: true
+  diff: false
+  when:
+    - terminal_wireguard_enabled | bool
+    - not ansible_check_mode
+
+- name: Consultar conexoes WireGuard importadas no NetworkManager
+  ansible.builtin.command:
+    argv: [nmcli, --terse, --fields, NAME, connection, show]
+  register: terminal_wireguard_nmcli_profiles
+  changed_when: false
+  failed_when: terminal_wireguard_nmcli_profiles.rc != 0
+  when:
+    - terminal_wireguard_enabled | bool
+    - not ansible_check_mode
+
+- name: Preparar e importar perfis WireGuard no NetworkManager
+  block:
+    - name: Criar diretorio temporario para importacao NetworkManager
+      ansible.builtin.file:
+        path: "{{ ubuntu_desktop_home }}/.config/wireguard/.import"
+        state: directory
+        owner: "{{ ubuntu_desktop_user }}"
+        group: "{{ ubuntu_desktop_user }}"
+        mode: '0700'
+
+    - name: Preparar arquivos com nomes de interface WireGuard validos
+      ansible.builtin.copy:
+        content: >-
+          {{ (terminal_wireguard_downloads.results
+              | selectattr('item.document', 'equalto', item.document)
+              | first).stdout }}
+        dest: >-
+          {{ ubuntu_desktop_home }}/.config/wireguard/.import/{{ item.interface }}.conf
+        owner: "{{ ubuntu_desktop_user }}"
+        group: "{{ ubuntu_desktop_user }}"
+        mode: '0600'
+      loop: "{{ terminal_wireguard_profiles }}"
+      loop_control:
+        label: "{{ item.interface }}"
+      no_log: true
+      diff: false
+      when: item.interface not in terminal_wireguard_nmcli_profiles.stdout_lines
+
+    - name: Importar perfis WireGuard
+      ansible.builtin.command:
+        argv:
+          - nmcli
+          - connection
+          - import
+          - type
+          - wireguard
+          - file
+          - "{{ ubuntu_desktop_home }}/.config/wireguard/.import/{{ item.interface }}.conf"
+      become: true
+      loop: "{{ terminal_wireguard_profiles }}"
+      loop_control:
+        label: "{{ item.interface }}"
+      register: terminal_wireguard_nmcli_imports
+      changed_when: true
+      no_log: true
+      diff: false
+      when: item.interface not in terminal_wireguard_nmcli_profiles.stdout_lines
+
+  always:
+    - name: Remover arquivos temporarios da importacao WireGuard
+      ansible.builtin.file:
+        path: "{{ ubuntu_desktop_home }}/.config/wireguard/.import/{{ item.interface }}.conf"
+        state: absent
+      loop: "{{ terminal_wireguard_profiles }}"
+      loop_control:
+        label: "{{ item.interface }}"
+      no_log: true
+
+    - name: Remover diretorio temporario da importacao WireGuard
+      ansible.builtin.file:
+        path: "{{ ubuntu_desktop_home }}/.config/wireguard/.import"
+        state: absent
+
+  when:
+    - terminal_wireguard_enabled | bool
+    - not ansible_check_mode
+
+- name: Informar limitacao do check mode dos perfis WireGuard
+  ansible.builtin.debug:
+    msg: >-
+      Check mode nao consulta o 1Password nem importa perfis WireGuard;
+      somente diretorios e arquivos de configuracao sao simulados.
+  when:
+    - terminal_wireguard_enabled | bool
+    - ansible_check_mode

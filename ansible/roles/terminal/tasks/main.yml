@@ -24,6 +24,9 @@
 - name: Configurar chaves SSH do 1Password
   ansible.builtin.include_tasks: ssh.yml
 
+- name: Configurar perfis WireGuard do 1Password
+  ansible.builtin.include_tasks: wireguard.yml
+
 - name: Criar cache persistente da automacao
   ansible.builtin.file:
     path: /var/cache/ubuntu-desktop
