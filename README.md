@@ -150,13 +150,52 @@ bash scripts/bash/run-ansible.sh \
   --inventory ansible/inventories/private/lab/hosts.yml \
   --limit workstation01 \
   --secrets-dir "$HOME/.microsoft/usersecrets/ansible" \
-  --dry-run --verbose
+  --remove-snap --dry-run --verbose
 ```
 
-Crie o inventario privado a partir de `ansible/inventories/example/` e consulte
-o guia Ansible antes da aplicacao real. Mantenha `vault.yml` e `vault-password`
-fora do repositorio em `~/.microsoft/usersecrets/ansible` no Linux ou em
-`%APPDATA%\Microsoft\UserSecrets\ansible` no Windows.
+Crie o inventario privado a partir de `ansible/inventories/example/` e revise o
+plano. A simulacao inclui a fase Snap, mas nao executa as remocoes destrutivas.
+Para aplicar, confirme antes que os aplicativos substitutos funcionam e que os
+dados importantes foram preservados; a operacao remove o Snap e dados
+associados, sem rollback automatico. O diretório
+`$HOME/.microsoft/usersecrets/ansible` deve conter `vault.yml` e
+`vault-password`. Crie os arquivos fora do repositorio com permissoes restritas:
+
+```bash
+SECRETS_DIR="$HOME/.microsoft/usersecrets/ansible"
+install -d -m 700 "$SECRETS_DIR"
+read -r -s -p 'Senha do Ansible Vault: ' VAULT_PASSWORD
+printf '\n'
+printf '%s\n' "$VAULT_PASSWORD" >"$SECRETS_DIR/vault-password"
+unset VAULT_PASSWORD
+chmod 600 "$SECRETS_DIR/vault-password"
+ansible-vault create "$SECRETS_DIR/vault.yml" \
+  --vault-password-file "$SECRETS_DIR/vault-password"
+chmod 600 "$SECRETS_DIR/vault.yml"
+```
+
+No editor do `ansible-vault`, informe `ansible_become_password: "..."` somente
+se o `sudo` do alvo pedir senha. Use autenticação SSH por chave/agent; somente
+se autenticar por senha SSH, inclua também `ansible_password`. O
+`vault-password` armazena a senha que criptografa `vault.yml`.
+**Não inclua `OP_SERVICE_ACCOUNT_TOKEN` nesses arquivos**: essa variável deve
+estar exportada no ambiente do controller para o `op`.
+
+O comando real, com os parâmetros de remoção e confirmação exigidos, é:
+
+```bash
+test -n "${OP_SERVICE_ACCOUNT_TOKEN:-}"
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/lab/hosts.yml \
+  --limit workstation01 \
+  --secrets-dir "$HOME/.microsoft/usersecrets/ansible" \
+  --remove-snap --confirm-remove-snap
+```
+
+Mantenha `vault.yml` e `vault-password` fora do repositorio em
+`~/.microsoft/usersecrets/ansible` no Linux ou
+`%APPDATA%\Microsoft\UserSecrets\ansible` no Windows. Veja os detalhes e
+limites da simulacao no [guia operacional Ansible](docs/automacao-ansible.md).
 
 ## Contrato Operacional
 

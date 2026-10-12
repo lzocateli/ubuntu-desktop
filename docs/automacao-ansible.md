@@ -146,6 +146,13 @@ No editor aberto por `ansible-vault create`, informe apenas variaveis realmente
 necessarias, por exemplo `ansible_become_password`. Prefira SSH Agent a armazenar
 `ansible_password` ou chaves privadas.
 
+O nome esperado pelo wrapper e `vault.yml`; o arquivo da senha do Vault deve se
+chamar `vault-password`. Se o alvo solicitar senha para `sudo`, inclua
+`ansible_become_password` no `vault.yml`. Use `ansible_password` somente se a
+conexao SSH autenticar por senha em vez de chave/agent. O token
+`OP_SERVICE_ACCOUNT_TOKEN` do 1Password nao pertence ao Ansible Vault: mantenha-o
+exportado no ambiente do controller.
+
 Para manter os arquivos no perfil Windows, crie o diretorio no PowerShell e
 converta o caminho ao executar pelo WSL:
 
@@ -398,7 +405,7 @@ bash scripts/bash/run-ansible.sh \
   --inventory ansible/inventories/private/lab/hosts.yml \
   --limit workstation01 \
   --secrets-dir "$HOME/.microsoft/usersecrets/ansible" \
-  --dry-run --verbose
+  --remove-snap --dry-run --verbose
 ```
 
 Aplicacao real, sem remover Snap:
@@ -415,6 +422,10 @@ configurado. Forneca o token no ambiente via gerenciador de secrets do
 controller; nao o grave no shell profile, inventario, argumento de processo ou
 log. Se as chaves SSH nao fizerem parte da execucao, configure
 `terminal_ssh_key_items: []` e `terminal_ssh_hosts: []` no inventario privado.
+
+Para remover o Snap, revise primeiro a simulacao da secao [Remocao do
+Snap](#remocao-do-snap); a execucao real exige conjuntamente
+`--remove-snap --confirm-remove-snap` e remove dados sem rollback automatico.
 
 O wrapper nao eleva privilegios no controller. O playbook usa `become` somente
 nas tasks que alteram o sistema. A conexao remota, o shell, as fontes, o profile
@@ -451,6 +462,7 @@ bash scripts/bash/run-ansible.sh \
 Depois de confirmar que Edge/Firefox e os demais substitutos funcionam, execute:
 
 ```bash
+test -n "${OP_SERVICE_ACCOUNT_TOKEN:-}"
 bash scripts/bash/run-ansible.sh \
   --inventory ansible/inventories/private/lab/hosts.yml \
   --limit workstation01 \
