@@ -20,6 +20,9 @@
           - terminal_oh_my_posh_config_file == 'atomic.omp-VISION.json'
           - terminal_oh_my_posh_config_path == '/home/example/.config/oh-my-posh/atomic.omp-VISION.json'
           - terminal_zsh_history_size == 50000
+          - terminal_vscode_terminal_font_family == 'MesloLGM Nerd Font'
+          - terminal_vscode_settings_path == '/home/example/.config/Code/User/settings.json'
+          - terminal_vscode_profiles_path == '/home/example/.config/Code/User/profiles'
           - terminal_zsh_test_theme.version == 3
           - terminal_zsh_test_theme.blocks | length > 0
           - terminal_zsh_test_theme.blocks | selectattr('type', 'equalto', 'prompt') | list | length > 0

@@ -1,0 +1,55 @@
+---
+- name: Consultar diretorio de preferencias do VS Code
+  ansible.builtin.stat:
+    path: "{{ terminal_vscode_settings_path | dirname }}"
+  register: terminal_vscode_settings_directory
+
+- name: Criar diretorio de preferencias do VS Code
+  ansible.builtin.file:
+    path: "{{ terminal_vscode_settings_path | dirname }}"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0755'
+  when: not terminal_vscode_settings_directory.stat.exists
+
+- name: Criar preferencias do VS Code quando ausentes
+  ansible.builtin.copy:
+    content: "{\n}\n"
+    dest: "{{ terminal_vscode_settings_path }}"
+    force: false
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0644'
+
+- name: Consultar diretorio dos perfis do VS Code
+  ansible.builtin.stat:
+    path: "{{ terminal_vscode_profiles_path }}"
+  register: terminal_vscode_profiles_directory
+
+- name: Consultar arquivos de preferencias dos perfis do VS Code
+  ansible.builtin.find:
+    paths: "{{ terminal_vscode_profiles_path }}"
+    patterns: settings.json
+    file_type: file
+    recurse: true
+  register: terminal_vscode_profile_settings
+  when: terminal_vscode_profiles_directory.stat.isdir | default(false)
+
+- name: Configurar fonte no perfil padrao e nos perfis do VS Code
+  ansible.builtin.include_tasks:
+    file: vscode-settings-file.yml
+    apply:
+      tags: [vscode]
+  loop: >-
+    {{
+      [terminal_vscode_settings_path]
+      + (
+        terminal_vscode_profile_settings.files | default([])
+        | map(attribute='path') | list
+      )
+    }}
+  loop_control:
+    loop_var: terminal_vscode_settings_file
+    label: "{{ terminal_vscode_settings_file }}"
+  tags: [vscode]

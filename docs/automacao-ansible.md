@@ -15,6 +15,7 @@
 - [Chaves SSH e NuGet](#chaves-ssh-e-nuget)
 - [Ambiente Linux pelo 1Password](#ambiente-linux-pelo-1password)
 - [ZSH, historico e tema Oh My Posh](#zsh-historico-e-tema-oh-my-posh)
+- [Fonte Meslo no terminal integrado do VS Code](#fonte-meslo-no-terminal-integrado-do-vs-code)
 - [Parametros e variaveis](#parametros-e-variaveis)
 - [Uso rapido](#uso-rapido)
 - [Simulacao](#simulacao)
@@ -521,6 +522,15 @@ no home e `terminal_zsh_history_size` controla os limites de memoria e gravacao.
 Abra um novo terminal ou execute `exec zsh` para carregar a configuracao; o
 Ansible nao encerra shells ja abertos.
 
+## Fonte Meslo no terminal integrado do VS Code
+
+A role `terminal` configura `terminal.integrated.fontFamily` como
+`MesloLGM Nerd Font` nas preferencias globais e nos perfis existentes do VS Code,
+usando a mesma fonte Nerd Font instalada para o prompt ZSH. Isso evita que uma
+preferencia de perfil, como `monospace`, sobreponha a configuracao global. As
+demais preferencias existentes sao preservadas. Feche e abra o terminal
+integrado para carregar a fonte.
+
 ## Parametros e variaveis
 
 Wrapper:
@@ -551,6 +561,8 @@ Variaveis principais:
 | `terminal_oh_my_posh_config_file` | `atomic.omp-VISION.json` | Tema distribuido pela role terminal |
 | `terminal_oh_my_posh_config_path` | `~/.config/oh-my-posh/atomic.omp-VISION.json` | Caminho do tema instalado |
 | `terminal_zsh_history_size` | `50000` | Limite de historico carregado e salvo pelo ZSH |
+| `terminal_vscode_terminal_font_family` | `MesloLGM Nerd Font` | Familia da fonte do terminal integrado do VS Code |
+| `terminal_vscode_settings_path` | `~/.config/Code/User/settings.json` | Caminho das preferencias gerenciadas do VS Code |
 | `terminal_devops_image` | `docker.io/lzocateli/devops:cpu-ubuntu24.04` | Imagem para Node, npm e npx |
 | `terminal_copilot_cli_version` | `1.0.91` | Versao standalone do Copilot CLI instalada no host |
 | `terminal_copilot_cli_checksum` | SHA-256 do release 1.0.91 | Integridade do tarball Linux x64 |

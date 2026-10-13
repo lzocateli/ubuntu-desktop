@@ -1,0 +1,51 @@
+---
+- name: Ler preferencias do VS Code
+  ansible.builtin.slurp:
+    src: "{{ terminal_vscode_settings_file }}"
+  register: terminal_vscode_settings
+
+- name: Detectar fonte do terminal ja configurada
+  ansible.builtin.set_fact:
+    terminal_vscode_has_font_setting: >-
+      {{
+        (terminal_vscode_settings.content | b64decode)
+        is regex('(?m)^\s*"terminal\.integrated\.fontFamily"\s*:')
+      }}
+    terminal_vscode_has_other_settings: >-
+      {{
+        (terminal_vscode_settings.content | b64decode)
+        is regex('(?m)^\s*"[^"]+"\s*:')
+      }}
+    terminal_vscode_font_setting_matches: >-
+      {{
+        (terminal_vscode_settings.content | b64decode)
+        is regex(
+          '(?m)^\s*"terminal\.integrated\.fontFamily"\s*:\s*'
+          ~ (terminal_vscode_terminal_font_family | to_json | regex_escape)
+          ~ '\s*,?\s*$'
+        )
+      }}
+
+- name: Atualizar fonte existente do terminal integrado
+  ansible.builtin.lineinfile:
+    path: "{{ terminal_vscode_settings_file }}"
+    regexp: '^(\s*"terminal\.integrated\.fontFamily"\s*:\s*).*?(,?)\s*$'
+    line: '\1{{ terminal_vscode_terminal_font_family | to_json }}\2'
+    backrefs: true
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+  when:
+    - terminal_vscode_has_font_setting | bool
+    - not terminal_vscode_font_setting_matches | bool
+
+- name: Adicionar fonte as preferencias do VS Code
+  ansible.builtin.lineinfile:
+    path: "{{ terminal_vscode_settings_file }}"
+    regexp: '^\s*"terminal\.integrated\.fontFamily"\s*:'
+    line: >-
+      "terminal.integrated.fontFamily": {{ terminal_vscode_terminal_font_family | to_json }}{{ ',' if terminal_vscode_has_other_settings | bool else '' }}
+    insertafter: '^\s*\{\s*$'
+    firstmatch: true
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+  when: not terminal_vscode_has_font_setting | bool

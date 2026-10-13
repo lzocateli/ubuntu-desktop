@@ -1,0 +1,126 @@
+---
+- name: Validar configuracao da fonte Meslo no VS Code
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../ansible/roles/terminal/defaults/main.yml
+  vars:
+    ubuntu_desktop_user: "{{ lookup('env', 'USER') }}"
+  tasks:
+    - name: Criar diretorio temporario de teste
+      ansible.builtin.tempfile:
+        path: "{{ playbook_dir }}/../../artifacts"
+        state: directory
+        prefix: terminal-vscode-settings-
+      register: terminal_vscode_test_directory
+
+    - name: Exercitar inclusao, atualizacao e idempotencia das preferencias
+      block:
+        - name: Definir caminhos isolados para preferencias e perfis
+          ansible.builtin.set_fact:
+            terminal_vscode_settings_path: "{{ terminal_vscode_test_directory.path }}/User/settings.json"
+            terminal_vscode_profiles_path: "{{ terminal_vscode_test_directory.path }}/User/profiles"
+
+        - name: Criar perfil de teste com fonte que sobrescreve a global
+          ansible.builtin.file:
+            path: "{{ terminal_vscode_profiles_path }}/active-profile"
+            state: directory
+            mode: '0755'
+
+        - name: Preparar preferencias de perfil com fonte conflitante
+          ansible.builtin.copy:
+            content: |
+              {
+                "terminal.integrated.fontFamily": "monospace",
+                "editor.fontSize": 14
+              }
+            dest: "{{ terminal_vscode_profiles_path }}/active-profile/settings.json"
+            mode: '0660'
+
+        - name: Configurar fonte no perfil padrao e nos perfis do VS Code
+          ansible.builtin.import_tasks: ../../ansible/roles/terminal/tasks/vscode-settings.yml
+
+        - name: Ler preferencias criadas e do perfil ativo
+          ansible.builtin.slurp:
+            src: "{{ item }}"
+          loop:
+            - "{{ terminal_vscode_settings_path }}"
+            - "{{ terminal_vscode_profiles_path }}/active-profile/settings.json"
+          register: terminal_vscode_initial_settings
+
+        - name: Confirmar inclusao na base e remocao da sobreposicao do perfil
+          ansible.builtin.assert:
+            that:
+              - (terminal_vscode_initial_settings.results[0].content | b64decode | from_json)['terminal.integrated.fontFamily'] == 'MesloLGM Nerd Font'
+              - (terminal_vscode_initial_settings.results[1].content | b64decode | from_json)['terminal.integrated.fontFamily'] == 'MesloLGM Nerd Font'
+              - (terminal_vscode_initial_settings.results[1].content | b64decode | from_json)['editor.fontSize'] == 14
+
+        - name: Preparar preferencias globais conflitantes
+          ansible.builtin.copy:
+            content: |
+              {
+                "terminal.integrated.fontFamily": "monospace",
+                "files.autoSave": "afterDelay"
+              }
+            dest: "{{ terminal_vscode_settings_path }}"
+            mode: '0660'
+
+        - name: Reintroduzir fonte conflitante no perfil ativo
+          ansible.builtin.copy:
+            content: |
+              {
+                "terminal.integrated.fontFamily": "monospace",
+                "editor.fontSize": 14
+              }
+            dest: "{{ terminal_vscode_profiles_path }}/active-profile/settings.json"
+            mode: '0660'
+
+        - name: Corrigir fontes conflitantes sem perder outras preferencias
+          ansible.builtin.import_tasks: ../../ansible/roles/terminal/tasks/vscode-settings.yml
+
+        - name: Ler preferencias atualizadas
+          ansible.builtin.slurp:
+            src: "{{ item }}"
+          loop:
+            - "{{ terminal_vscode_settings_path }}"
+            - "{{ terminal_vscode_profiles_path }}/active-profile/settings.json"
+          register: terminal_vscode_updated_settings
+
+        - name: Guardar checksums das preferencias convergidas
+          ansible.builtin.stat:
+            path: "{{ item }}"
+            checksum_algorithm: sha256
+          loop:
+            - "{{ terminal_vscode_settings_path }}"
+            - "{{ terminal_vscode_profiles_path }}/active-profile/settings.json"
+          register: terminal_vscode_before_second_run
+
+        - name: Reaplicar configuracao convergida nos perfis
+          ansible.builtin.import_tasks: ../../ansible/roles/terminal/tasks/vscode-settings.yml
+
+        - name: Consultar checksums apos segunda aplicacao
+          ansible.builtin.stat:
+            path: "{{ item }}"
+            checksum_algorithm: sha256
+          loop:
+            - "{{ terminal_vscode_settings_path }}"
+            - "{{ terminal_vscode_profiles_path }}/active-profile/settings.json"
+          register: terminal_vscode_after_second_run
+
+        - name: Confirmar preservacao e idempotencia em todos os perfis
+          ansible.builtin.assert:
+            that:
+              - (terminal_vscode_updated_settings.results[0].content | b64decode | from_json)['terminal.integrated.fontFamily'] == 'MesloLGM Nerd Font'
+              - (terminal_vscode_updated_settings.results[0].content | b64decode | from_json)['files.autoSave'] == 'afterDelay'
+              - (terminal_vscode_updated_settings.results[1].content | b64decode | from_json)['terminal.integrated.fontFamily'] == 'MesloLGM Nerd Font'
+              - (terminal_vscode_updated_settings.results[1].content | b64decode | from_json)['editor.fontSize'] == 14
+              - terminal_vscode_before_second_run.results[0].stat.mode == '0660'
+              - terminal_vscode_before_second_run.results[1].stat.mode == '0660'
+              - terminal_vscode_before_second_run.results[0].stat.checksum == terminal_vscode_after_second_run.results[0].stat.checksum
+              - terminal_vscode_before_second_run.results[1].stat.checksum == terminal_vscode_after_second_run.results[1].stat.checksum
+      always:
+        - name: Remover somente os arquivos temporarios deste teste
+          ansible.builtin.file:
+            path: "{{ terminal_vscode_test_directory.path }}"
+            state: absent

@@ -191,6 +191,13 @@
       {{ ubuntu_desktop_home }}/.local/share/fonts/MesloLGM-Nerd-Font-{{ terminal_nerd_fonts_version }}/MesloLGMNerdFont-Regular.ttf
   notify: Atualizar cache de fontes
 
+- name: Configurar fonte Meslo no terminal integrado do VS Code
+  ansible.builtin.include_tasks:
+    file: vscode-settings.yml
+    apply:
+      tags: [vscode]
+  tags: [vscode]
+
 - name: Validar configuracao JSON do tema Oh My Posh
   ansible.builtin.assert:
     that:
