@@ -10,6 +10,8 @@
       tags: [base]
     - role: flatpak_apps
       tags: [flatpak, applications]
+    - role: nextcloud_client
+      tags: [nextcloud, applications]
     - role: host_tools
       tags: [host_tools, development]
     - role: terminal

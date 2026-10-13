@@ -184,6 +184,11 @@ getent passwd "$USER" | cut -d: -f7
 ```
 
 Finalize a sessao e entre novamente para aplicar o shell.
+O Ansible mantem `~/.zsh_history` persistente e compartilhado entre sessoes,
+com `HISTSIZE` e `SAVEHIST` de 50.000 e permissoes `0600` no arquivo.
+O bloco gerenciado do `.zshrc` configura `APPEND_HISTORY`, `SHARE_HISTORY`,
+`EXTENDED_HISTORY`, evita duplicatas/comandos precedidos por espaco e carrega
+o tema Atomic versionado no projeto.
 
 ### TMUX
 
@@ -440,11 +445,14 @@ oh-my-posh version
 Para iniciar no ZSH:
 
 ```bash
-printf '%s\n' 'eval "$(oh-my-posh init zsh)"' >>"$HOME/.zshrc"
+eval "$(oh-my-posh init zsh --config \
+  "$HOME/.config/oh-my-posh/atomic.omp-VISION.json")"
 zsh -lc 'oh-my-posh version'
 ```
 
-A automacao Ansible usa bloco gerenciado e nao duplica a linha.
+A automacao Ansible instala o tema a partir de
+`ansible/roles/terminal/files/atomic.omp-VISION.json` e usa bloco gerenciado no
+`.zshrc`; nao acrescente uma segunda inicializacao manual.
 
 ## Oh My Zsh
 

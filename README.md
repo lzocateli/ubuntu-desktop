@@ -22,9 +22,10 @@ com execucao previsivel, simulacao segura e documentacao operacional.
 ## Estado Atual
 
 Automacao Ansible implementada para Ubuntu Desktop 26.04 LTS amd64. O projeto
-instala aplicativos Flatpak, ferramentas de terminal, Podman rootless, .NET, PowerShell,
-Azure CLI, Terraform, kubectl, GitHub CLI, 1Password, VS Code e uv. A migracao do
-Snap e opt-in e exige confirmacao explicita. Montagens persistentes de discos
+instala aplicativos Flatpak, cliente Nextcloud Desktop, ferramentas de terminal,
+Podman rootless, .NET, PowerShell, Azure CLI, Terraform, kubectl, GitHub CLI,
+1Password, VS Code e uv. A migracao do Snap e opt-in e exige confirmacao
+explicita. Montagens persistentes de discos
 sao configuradas manualmente, fora do Ansible; o playbook nao formata discos.
 
 Aplicacao, check mode e idempotencia ainda precisam ser comprovados em VM Ubuntu
@@ -44,11 +45,11 @@ bibliotecas e dependencias nao estao listados individualmente.
 | Desktop | Visual Studio Code, Tilix e GNOME Software | VS Code pelo repositorio Microsoft; Tilix e GNOME Software via APT |
 | Senhas | 1Password Desktop e 1Password CLI | Ambos instalados por padrao; desabilite com `host_tools_install_1password: false` |
 | Containers | Podman rootless e Podman Compose | Sem daemon root; imagens e dados ficam no home do usuario |
-| Armazenamento | Discos ext4 | Montagem persistente configurada manualmente em `/etc/fstab`; nao gerenciada pelo Ansible |
+| Armazenamento | Discos ext4 e cliente Nextcloud Desktop | Montagem persistente de `/mnt/kingston` configurada manualmente; sincronizacao em `/mnt/kingston/Nextcloud` |
 | VPN | WireGuard CLI e integracao grafica do NetworkManager; Mullvad Desktop e CLI | WireGuard pode ser configurado pelo GNOME Network Settings; Mullvad e instalado sem login nem conexao automatica |
 | Desenvolvimento | Git, OpenSSH Client, ZSH e tmux | O Ansible tambem configura Git e ZSH para o usuario |
 | SDKs e CLIs | .NET SDK 8 e 10, PowerShell, Azure CLI, Terraform, kubectl e GitHub CLI | kubectl usa o repositorio `v1.34` por padrao |
-| Terminal | uv, uvx, Oh My Posh, Oh My Zsh e MesloLGM Nerd Font | Instalados/configurados pelo perfil do usuario ou pelo Ansible |
+| Terminal | uv, uvx, Oh My Posh com tema Atomic, Oh My Zsh com historico persistente e MesloLGM Nerd Font | Tema e historico configurados pela role Ansible `terminal` |
 | Copilot | GitHub Copilot CLI 1.0.91 | Binario standalone instalado no host |
 | Claude Code | Claude Code CLI | Repositorio APT oficial Anthropic no canal `stable` |
 | Node.js | Node, npm e npx | Disponiveis por funcoes shell que executam a imagem `docker.io/lzocateli/devops:cpu-ubuntu24.04` via Podman; nao sao instalados no host |
@@ -61,6 +62,8 @@ definido como navegador principal nos handlers de HTML e HTTP/HTTPS; Chrome
 tambem fica instalado e pode ser aberto como alternativa.
 Veja a lista canonica e detalhes em
 [Aplicativos cobertos pelo Ansible](docs/aplicativos-ansible.md).
+O cliente Nextcloud usa `https://meudrive.lzoca/`; o login e a selecao final
+da pasta de sincronizacao sao concluidos no assistente grafico.
 
 ## Organizacao
 

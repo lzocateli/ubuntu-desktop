@@ -1,0 +1,25 @@
+---
+- name: Validar configuracao versionada do Oh My Posh e do ZSH
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ubuntu_desktop_home: /home/example
+  vars_files:
+    - ../../ansible/roles/terminal/defaults/main.yml
+  tasks:
+    - name: Carregar tema Oh My Posh do projeto
+      ansible.builtin.set_fact:
+        terminal_zsh_test_theme: >-
+          {{ lookup('file', '../../ansible/roles/terminal/files/atomic.omp-VISION.json')
+             | from_json }}
+
+    - name: Garantir caminhos e parametros persistentes do ZSH
+      ansible.builtin.assert:
+        that:
+          - terminal_oh_my_posh_config_file == 'atomic.omp-VISION.json'
+          - terminal_oh_my_posh_config_path == '/home/example/.config/oh-my-posh/atomic.omp-VISION.json'
+          - terminal_zsh_history_size == 50000
+          - terminal_zsh_test_theme.version == 3
+          - terminal_zsh_test_theme.blocks | length > 0
+          - terminal_zsh_test_theme.blocks | selectattr('type', 'equalto', 'prompt') | list | length > 0

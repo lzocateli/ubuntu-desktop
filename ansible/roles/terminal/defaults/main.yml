@@ -18,6 +18,10 @@ terminal_ssh_hosts: []
 terminal_nuget_test_source: https://int.nugettest.org/
 terminal_uv_version: 0.8.22
 terminal_oh_my_posh_version: 26.23.4
+terminal_oh_my_posh_config_file: atomic.omp-VISION.json
+terminal_oh_my_posh_config_path: >-
+  {{ ubuntu_desktop_home }}/.config/oh-my-posh/{{ terminal_oh_my_posh_config_file }}
+terminal_zsh_history_size: 50000
 terminal_nerd_fonts_version: 3.4.0
 terminal_oh_my_zsh_version: master
 terminal_devops_image: docker.io/lzocateli/devops:cpu-ubuntu24.04

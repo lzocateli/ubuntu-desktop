@@ -1,0 +1,70 @@
+---
+- name: Validar configuracao do cliente Nextcloud
+  ansible.builtin.assert:
+    that:
+      - nextcloud_client_server_url.startswith('https://')
+      - nextcloud_client_mount_point == '/mnt/kingston'
+      - nextcloud_client_sync_directory | dirname == nextcloud_client_mount_point
+      - nextcloud_client_sync_directory != nextcloud_client_mount_point
+    fail_msg: >-
+      Configure uma URL HTTPS e uma pasta de sincronizacao filha direta do
+      ponto de montagem /mnt/kingston.
+
+- name: Confirmar que o disco Kingston ja esta montado
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - --noheadings
+      - --output
+      - TARGET
+      - --mountpoint
+      - "{{ nextcloud_client_mount_point }}"
+  check_mode: false
+  changed_when: false
+
+- name: Consultar estado da pasta de sincronizacao
+  ansible.builtin.stat:
+    path: "{{ nextcloud_client_sync_directory }}"
+    follow: false
+  register: nextcloud_client_sync_directory_state
+
+- name: Validar pasta de sincronizacao existente
+  ansible.builtin.assert:
+    that:
+      - not (nextcloud_client_sync_directory_state.stat.islnk | default(false))
+      - >-
+        not (nextcloud_client_sync_directory_state.stat.exists | default(false))
+        or (nextcloud_client_sync_directory_state.stat.isdir | default(false))
+    fail_msg: >-
+      A pasta de sincronizacao existe como link simbolico ou nao e um diretorio:
+      {{ nextcloud_client_sync_directory }}.
+
+- name: Atualizar cache APT para o cliente Nextcloud
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+  when: not ansible_check_mode
+
+- name: Instalar cliente Nextcloud Desktop
+  ansible.builtin.apt:
+    name: "{{ nextcloud_client_package }}"
+    state: present
+  become: true
+
+- name: Preparar pasta de sincronizacao no disco Kingston
+  ansible.builtin.file:
+    path: "{{ nextcloud_client_sync_directory }}"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0750'
+  become: true
+
+- name: Validar instalacao do cliente Nextcloud
+  ansible.builtin.command:
+    argv: [nextcloud, --version]
+  register: nextcloud_client_version
+  changed_when: false
+  failed_when: nextcloud_client_version.rc != 0
+  when: not ansible_check_mode

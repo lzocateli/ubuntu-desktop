@@ -3,6 +3,7 @@
 ## Sumario
 
 - [Escopo](#escopo)
+- [Cliente Nextcloud Desktop](#cliente-nextcloud-desktop)
 - [Aplicativos Flatpak](#aplicativos-flatpak)
 - [Ferramentas do host](#ferramentas-do-host)
 - [Terminal e shell](#terminal-e-shell)
@@ -19,6 +20,20 @@ o plano sem exigir que binarios ainda nao instalados existam.
 O usuario da estacao e `lzocateli`, com home `/home/lzocateli` e acesso pelo grupo
 `sudo`. Pacotes, repositorios, Flatpaks de sistema e servicos exigem elevacao;
 configuracoes pessoais, shell, fontes e `~/.profile` pertencem a `lzocateli`.
+
+## Cliente Nextcloud Desktop
+
+| Aplicativo | Pacote | Servidor | Pasta local | Estado padrao |
+| --- | --- | --- | --- | --- |
+| Nextcloud Desktop | `nextcloud-desktop` (APT) | `https://meudrive.lzoca/` | `/mnt/kingston/Nextcloud` | Instalado |
+
+A role exige que `/mnt/kingston` ja seja um ponto de montagem e cria a pasta de
+sincronizacao com proprietario `lzocateli`, grupo primario do usuario e modo
+`0750`. Ela nao formata, monta nem altera `/etc/fstab`, e falha se a pasta
+configurada for um link simbolico ou um arquivo. O cliente inicia sem conta
+autenticada: abra **Nextcloud Desktop**, informe o servidor acima e conclua o
+login no assistente. Selecione `/mnt/kingston/Nextcloud` como pasta local; nao
+grave senha de app ou token no inventario.
 
 ## Aplicativos Flatpak
 
@@ -122,8 +137,8 @@ a automacao nao autentica nem inicia sessoes do Claude Code.
 | --- | --- | --- |
 | uv | Versao fixa em `/opt/uv`, links em `/usr/local/bin` | `uv --version` |
 | uvx | Instalado junto com uv | `uvx --version` |
-| Oh My Posh | Binario em `/usr/local/bin` e inicializacao no ZSH | `oh-my-posh version` |
-| Oh My Zsh | Clone fixado por variavel e plugin Git | Arquivo principal presente |
+| Oh My Posh | Binario em `/usr/local/bin` e tema Atomic do projeto em `~/.config/oh-my-posh/atomic.omp-VISION.json` | `oh-my-posh version`; inicializacao ZSH valida |
+| Oh My Zsh | Clone fixado por variavel e plugin Git; historico persistente compartilhado com 50.000 linhas | Arquivo principal e opcoes de historico validados; `~/.zsh_history` modo `0600` |
 | Git do usuario | VS Code, fluxo de branches, diff/merge, rebase e `rerere` | Valores essenciais via `git config --file` |
 | MesloLGM Nerd Font | Fonte no perfil do usuario e atualização do cache | Familia presente em `fc-list` |
 | Ambiente 1Password | Ansible baixa o `.env` e grava exports em `~/.profile` | Sintaxe do profile e testes com stub |

@@ -1,0 +1,17 @@
+---
+- name: Validar defaults do cliente Nextcloud
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../ansible/roles/nextcloud_client/defaults/main.yml
+  tasks:
+    - name: Garantir configuracao HTTPS e pasta isolada no volume Kingston
+      ansible.builtin.assert:
+        that:
+          - nextcloud_client_server_url == 'https://meudrive.lzoca/'
+          - nextcloud_client_server_url.startswith('https://')
+          - nextcloud_client_mount_point == '/mnt/kingston'
+          - nextcloud_client_sync_directory == '/mnt/kingston/Nextcloud'
+          - nextcloud_client_sync_directory | dirname == nextcloud_client_mount_point
+          - nextcloud_client_package == 'nextcloud-desktop'

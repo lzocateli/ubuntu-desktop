@@ -191,6 +191,46 @@
       {{ ubuntu_desktop_home }}/.local/share/fonts/MesloLGM-Nerd-Font-{{ terminal_nerd_fonts_version }}/MesloLGMNerdFont-Regular.ttf
   notify: Atualizar cache de fontes
 
+- name: Validar configuracao JSON do tema Oh My Posh
+  ansible.builtin.assert:
+    that:
+      - (lookup('file', role_path ~ '/files/' ~ terminal_oh_my_posh_config_file) | from_json).version == 3
+      - (lookup('file', role_path ~ '/files/' ~ terminal_oh_my_posh_config_file) | from_json).blocks | length > 0
+    fail_msg: O tema Oh My Posh precisa ser um JSON v3 valido com blocos de prompt.
+  when: terminal_configure_zsh | bool
+  tags: [zsh]
+
+- name: Criar diretorio de configuracao do Oh My Posh
+  ansible.builtin.file:
+    path: "{{ terminal_oh_my_posh_config_path | dirname }}"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0750'
+  when: terminal_configure_zsh | bool
+  tags: [zsh]
+
+- name: Instalar tema Oh My Posh do projeto
+  ansible.builtin.copy:
+    src: "{{ terminal_oh_my_posh_config_file }}"
+    dest: "{{ terminal_oh_my_posh_config_path }}"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0644'
+  when: terminal_configure_zsh | bool
+  tags: [zsh]
+
+- name: Criar arquivo persistente de historico ZSH sem sobrescrever historico existente
+  ansible.builtin.copy:
+    content: ''
+    dest: "{{ ubuntu_desktop_home }}/.zsh_history"
+    force: false
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0600'
+  when: terminal_configure_zsh | bool
+  tags: [zsh]
+
 - name: Configurar ZSH e Oh My Posh
   ansible.builtin.blockinfile:
     path: "{{ ubuntu_desktop_home }}/.zshrc"
@@ -201,11 +241,17 @@
     marker: '# {mark} ANSIBLE UBUNTU DESKTOP'
     block: |
       export ZSH="$HOME/.oh-my-zsh"
+      HISTFILE="$HOME/.zsh_history"
+      HISTSIZE={{ terminal_zsh_history_size }}
+      SAVEHIST={{ terminal_zsh_history_size }}
+      setopt APPEND_HISTORY SHARE_HISTORY EXTENDED_HISTORY
+      setopt HIST_IGNORE_DUPS HIST_IGNORE_SPACE HIST_REDUCE_BLANKS
       ZSH_THEME=""
       plugins=(git)
       source "$ZSH/oh-my-zsh.sh"
-      eval "$(oh-my-posh init zsh)"
+      eval "$(oh-my-posh init zsh --config {{ terminal_oh_my_posh_config_path | quote }})"
   when: terminal_configure_zsh | bool
+  tags: [zsh]
 
 - name: Criar diretorio de integracao do terminal
   ansible.builtin.file:
@@ -440,12 +486,56 @@
     path: "{{ ubuntu_desktop_home }}/.oh-my-zsh/oh-my-zsh.sh"
   register: terminal_oh_my_zsh_file
   when: not ansible_check_mode
+  tags: [zsh]
 
 - name: Validar Oh My Zsh e MesloLGM Nerd Font
   ansible.builtin.assert:
     that:
       - terminal_oh_my_zsh_file.stat.isreg | default(false)
   when: not ansible_check_mode
+  tags: [zsh]
+
+- name: Validar arquivo de historico ZSH e permissoes
+  ansible.builtin.stat:
+    path: "{{ ubuntu_desktop_home }}/.zsh_history"
+  register: terminal_zsh_history_file
+  when:
+    - not ansible_check_mode
+    - terminal_configure_zsh | bool
+  tags: [zsh]
+
+- name: Confirmar arquivo de historico ZSH restrito ao usuario
+  ansible.builtin.assert:
+    that:
+      - terminal_zsh_history_file.stat.isreg | default(false)
+      - terminal_zsh_history_file.stat.pw_name == ubuntu_desktop_user
+      - terminal_zsh_history_file.stat.mode == '0600'
+    fail_msg: O arquivo de historico ZSH deve pertencer ao usuario e ter modo 0600.
+  when:
+    - not ansible_check_mode
+    - terminal_configure_zsh | bool
+  tags: [zsh]
+
+- name: Validar configuracao interativa do ZSH, historico e tema
+  ansible.builtin.command:
+    argv:
+      - zsh
+      - -ic
+      - >-
+        [[ "$HISTFILE" == "$HOME/.zsh_history" ]] &&
+        [[ "$HISTSIZE" -ge {{ terminal_zsh_history_size }} ]] &&
+        [[ "$SAVEHIST" -ge {{ terminal_zsh_history_size }} ]] &&
+        [[ -o appendhistory && -o sharehistory && -o extendedhistory ]] &&
+        [[ -o hist_ignore_dups && -o hist_ignore_space && -o hist_reduce_blanks ]]
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  register: terminal_zsh_configuration_validation
+  changed_when: false
+  failed_when: terminal_zsh_configuration_validation.rc != 0
+  when:
+    - not ansible_check_mode
+    - terminal_configure_zsh | bool
+  tags: [zsh]
 
 - name: Validar MesloLGM Nerd Font
   ansible.builtin.command:

@@ -11,8 +11,10 @@
 - [Configuracao Git do usuario](#configuracao-git-do-usuario)
 - [Ferramentas de desenvolvimento](#ferramentas-de-desenvolvimento)
 - [Montagem persistente de disco](#montagem-persistente-de-disco)
+- [Cliente Nextcloud](#cliente-nextcloud)
 - [Chaves SSH e NuGet](#chaves-ssh-e-nuget)
 - [Ambiente Linux pelo 1Password](#ambiente-linux-pelo-1password)
+- [ZSH, historico e tema Oh My Posh](#zsh-historico-e-tema-oh-my-posh)
 - [Parametros e variaveis](#parametros-e-variaveis)
 - [Uso rapido](#uso-rapido)
 - [Simulacao](#simulacao)
@@ -62,8 +64,10 @@ de qualquer download.
 | `ansible/roles/preflight/` | Validacao de SO, arquitetura e usuario |
 | `ansible/roles/base/` | Pacotes Ubuntu e terminal |
 | `ansible/roles/flatpak_apps/` | Flathub e aplicativos graficos |
+| `ansible/roles/nextcloud_client/` | Cliente Nextcloud e pasta de sincronizacao |
 | `ansible/roles/host_tools/` | Repositorios, SDKs, CLIs e Podman rootless |
 | `ansible/roles/terminal/` | uv, ZSH, Oh My Posh, Oh My Zsh e fonte |
+| `ansible/roles/terminal/files/atomic.omp-VISION.json` | Tema Oh My Posh utilizado pelo ZSH |
 | `ansible/roles/snap_migration/` | Remocao e bloqueio opt-in do Snap |
 | `scripts/bash/bootstrap-ansible.sh` | Dependencias do controller |
 | `scripts/bash/run-ansible.sh` | Wrapper operacional |
@@ -316,6 +320,40 @@ Substitua `ID-DO-DISCO` pelo link `/dev/disk/by-id` confirmado para o seu
 dispositivo. A entrada fstab passa a ser usada no proximo boot; nao monte o
 mesmo volume em dois caminhos ao mesmo tempo.
 
+## Cliente Nextcloud
+
+A role instala o pacote APT `nextcloud-desktop` no Ubuntu Desktop 26.04 LTS
+amd64 e prepara `/mnt/kingston/Nextcloud` para sincronizacao com
+`https://meudrive.lzoca/`. O volume precisa estar montado exatamente em
+`/mnt/kingston` antes de executar a role. A automacao nao formata, monta nem
+configura persistencia do disco.
+
+Simule e aplique somente a role Nextcloud em um alvo autorizado:
+
+```bash
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/lab/hosts.yml \
+  --limit workstation01 --tags nextcloud --dry-run
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/lab/hosts.yml \
+  --limit workstation01 --tags nextcloud
+```
+
+Check mode confirma o ponto de montagem com a consulta somente leitura
+`findmnt`, simula a instalacao/pasta e pula a atualizacao do cache APT. A
+disponibilidade do pacote na origem nao e confirmada ate a execucao real. A
+simulacao nao autentica nem contacta o servidor.
+Na sessao GNOME, abra Nextcloud Desktop, informe a URL acima, autentique-se e
+selecione `/mnt/kingston/Nextcloud` como pasta local. Credenciais nao sao
+armazenadas pela role. Verifique que o disco tem espaco suficiente e backup
+antes da primeira sincronizacao; exclusoes e alteracoes sincronizadas no servidor
+podem propagar-se para o disco e vice-versa.
+
+A URL, a pasta local e o nome do pacote podem ser sobrescritos por
+`nextcloud_client_server_url`, `nextcloud_client_sync_directory` e
+`nextcloud_client_package`, respectivamente. O ponto de montagem permanece
+fixado em `/mnt/kingston`, e a pasta deve ser sua filha direta.
+
 Para acesso de escrita pelo usuario atual, ajuste a propriedade do diretorio
 somente depois de confirmar que o volume certo esta montado:
 
@@ -453,6 +491,36 @@ Para remover as variaveis persistidas, defina
 O Ansible remove o bloco gerenciado, mas nao consegue retirar variaveis ja
 herdadas pelos processos existentes. Nao ative `set -x` nem imprima valores.
 
+## ZSH, historico e tema Oh My Posh
+
+A role `terminal` instala o tema versionado em
+`ansible/roles/terminal/files/atomic.omp-VISION.json` em
+`~/.config/oh-my-posh/atomic.omp-VISION.json` e configura o Oh My Posh para
+carrega-lo no ZSH. O bloco Ansible gerenciado em `~/.zshrc` define o arquivo
+`~/.zsh_history`, `HISTSIZE`/`SAVEHIST` de 50.000 e as opcoes `APPEND_HISTORY`,
+`SHARE_HISTORY` e `EXTENDED_HISTORY`, alem de ignorar duplicatas, comandos
+precedidos por espaco e espacos redundantes. O arquivo de historico tem modo
+`0600`; um historico existente e preservado.
+
+Simule e aplique somente as tarefas ZSH, sem reaplicar as demais configuracoes
+da role terminal:
+
+```bash
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/vision/hosts.yml \
+  --limit vision --tags zsh --dry-run
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/vision/hosts.yml \
+  --limit vision --tags zsh
+```
+
+A aplicacao valida o JSON v3 do tema, a inicializacao do Oh My Posh, a sintaxe
+interativa e as opcoes/limites do historico. `terminal_oh_my_posh_config_file`
+seleciona o arquivo da role, `terminal_oh_my_posh_config_path` define o caminho
+no home e `terminal_zsh_history_size` controla os limites de memoria e gravacao.
+Abra um novo terminal ou execute `exec zsh` para carregar a configuracao; o
+Ansible nao encerra shells ja abertos.
+
 ## Parametros e variaveis
 
 Wrapper:
@@ -480,6 +548,9 @@ Variaveis principais:
 | `host_tools_install_1password` | `true` | Instala Desktop e CLI |
 | `host_tools_configure_dotnet_dev_certificate` | `true` | Cria e confia no certificado HTTPS .NET do usuario |
 | `terminal_configure_zsh` | `true` | Configura e define ZSH como shell |
+| `terminal_oh_my_posh_config_file` | `atomic.omp-VISION.json` | Tema distribuido pela role terminal |
+| `terminal_oh_my_posh_config_path` | `~/.config/oh-my-posh/atomic.omp-VISION.json` | Caminho do tema instalado |
+| `terminal_zsh_history_size` | `50000` | Limite de historico carregado e salvo pelo ZSH |
 | `terminal_devops_image` | `docker.io/lzocateli/devops:cpu-ubuntu24.04` | Imagem para Node, npm e npx |
 | `terminal_copilot_cli_version` | `1.0.91` | Versao standalone do Copilot CLI instalada no host |
 | `terminal_copilot_cli_checksum` | SHA-256 do release 1.0.91 | Integridade do tarball Linux x64 |
@@ -587,8 +658,10 @@ Dados removidos nao possuem rollback automatico.
 | `preflight` | Validacoes do alvo |
 | `base` | Pacotes Ubuntu e terminal |
 | `flatpak` | Flathub e aplicativos |
+| `nextcloud` | Cliente Nextcloud Desktop e pasta de sincronizacao |
 | `host_tools` | Podman rootless, SDKs e CLIs |
 | `terminal` | Shell, Git, chaves SSH, fontes NuGet, uv, prompt e fonte |
+| `zsh` | Tema Oh My Posh e configuracao de historico do ZSH; requer ferramentas instaladas |
 | `development` | Ferramentas do host e terminal |
 | `snap_migration` | Remocao opt-in do Snap |
 
@@ -599,6 +672,9 @@ bash scripts/bash/run-ansible.sh \
   --inventory ansible/inventories/private/lab/hosts.yml \
   --limit workstation01 --tags flatpak --dry-run
 ```
+
+Para instalar ou simular apenas o cliente Nextcloud, substitua `flatpak` por
+`nextcloud`.
 
 ## Logs e saidas
 
@@ -641,6 +717,8 @@ yamllint .
 ansible-lint .
 ansible-playbook -i inventories/example/hosts.yml \
   playbooks/configure-workstation.yml --syntax-check
+ansible-playbook -i localhost, ../tests/ansible/nextcloud-client.yml
+ansible-playbook -i localhost, ../tests/ansible/terminal-zsh.yml
 ansible-playbook -i inventories/example/hosts.yml \
   playbooks/configure-workstation.yml --list-hosts --list-tasks
 ```
