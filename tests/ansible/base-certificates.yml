@@ -1,0 +1,32 @@
+---
+- name: Validar suporte base a importacao grafica de certificados
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../ansible/roles/base/defaults/main.yml
+  tasks:
+    - name: Garantir gerenciador grafico e backend PKCS11 explicitos
+      ansible.builtin.assert:
+        that:
+          - "'seahorse' in base_packages"
+          - "'gnome-keyring' in base_packages"
+          - "'gnome-keyring-pkcs11' in base_packages"
+          - "'ca-certificates' in base_packages"
+          - "'libnss3-tools' in base_packages"
+
+    - name: Carregar tasks base sem executar instalacoes
+      ansible.builtin.set_fact:
+        base_certificates_test_tasks: >-
+          {{ lookup('file', '../../ansible/roles/base/tasks/main.yml') | from_yaml }}
+
+    - name: Conferir instalacao idempotente sem forcar mutacoes em check mode
+      ansible.builtin.assert:
+        that:
+          - "'base_packages' in base_certificates_test_install['ansible.builtin.apt'].name"
+          - base_certificates_test_install['ansible.builtin.apt'].state == 'present'
+          - "'check_mode' not in base_certificates_test_install"
+          - base_certificates_test_install.become | bool
+          - base_certificates_test_tasks | length == 3
+      vars:
+        base_certificates_test_install: "{{ base_certificates_test_tasks | first }}"

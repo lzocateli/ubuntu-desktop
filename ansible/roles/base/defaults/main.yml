@@ -5,12 +5,15 @@ base_packages:
   - curl
   - fontconfig
   - git
+  - gnome-keyring
+  - gnome-keyring-pkcs11
   - gnupg
   - jq
   - libnss3-tools
   - openssh-client
   - openssl
   - python3-debian
+  - seahorse
   - tilix
   - tmux
   - unzip

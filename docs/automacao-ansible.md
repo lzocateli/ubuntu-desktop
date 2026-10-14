@@ -2,30 +2,44 @@
 
 ## Sumario
 
-- [Objetivo e escopo](#objetivo-e-escopo)
-- [Dependencias](#dependencias)
-- [Estrutura](#estrutura)
-- [Bootstrap](#bootstrap)
-- [Inventario](#inventario)
-- [Secrets e Ansible Vault](#secrets-e-ansible-vault)
-- [Configuracao Git do usuario](#configuracao-git-do-usuario)
-- [Ferramentas de desenvolvimento](#ferramentas-de-desenvolvimento)
-- [Montagem persistente de disco](#montagem-persistente-de-disco)
-- [Cliente Nextcloud](#cliente-nextcloud)
-- [Chaves SSH e NuGet](#chaves-ssh-e-nuget)
-- [Ambiente Linux pelo 1Password](#ambiente-linux-pelo-1password)
-- [ZSH, historico e tema Oh My Posh](#zsh-historico-e-tema-oh-my-posh)
-- [Fonte Meslo no terminal integrado do VS Code](#fonte-meslo-no-terminal-integrado-do-vs-code)
-- [Parametros e variaveis](#parametros-e-variaveis)
-- [Uso rapido](#uso-rapido)
-- [Simulacao](#simulacao)
-- [Remocao do Snap](#remocao-do-snap)
-- [Tags](#tags)
-- [Logs e saidas](#logs-e-saidas)
-- [Seguranca e impacto](#seguranca-e-impacto)
-- [Validacao](#validacao)
-- [Troubleshooting](#troubleshooting)
-- [Recuperacao](#recuperacao)
+- [Automacao Ansible do Ubuntu Desktop](#automacao-ansible-do-ubuntu-desktop)
+  - [Sumario](#sumario)
+  - [Objetivo e escopo](#objetivo-e-escopo)
+  - [Dependencias](#dependencias)
+  - [Importacao grafica de certificados](#importacao-grafica-de-certificados)
+    - [Importacao de CA por CLI](#importacao-de-ca-por-cli)
+    - [Importacao pela interface grafica](#importacao-pela-interface-grafica)
+    - [Onde os certificados ficam armazenados](#onde-os-certificados-ficam-armazenados)
+  - [Estrutura](#estrutura)
+  - [Bootstrap](#bootstrap)
+  - [Inventario](#inventario)
+  - [Secrets e Ansible Vault](#secrets-e-ansible-vault)
+    - [Criptografar e descriptografar o Vault](#criptografar-e-descriptografar-o-vault)
+  - [Configuracao Git do usuario](#configuracao-git-do-usuario)
+  - [Ferramentas de desenvolvimento](#ferramentas-de-desenvolvimento)
+  - [Montagem persistente de disco](#montagem-persistente-de-disco)
+  - [Cliente Nextcloud](#cliente-nextcloud)
+  - [Chaves SSH e NuGet](#chaves-ssh-e-nuget)
+  - [Ambiente Linux pelo 1Password](#ambiente-linux-pelo-1password)
+    - [Preparar o 1Password](#preparar-o-1password)
+    - [Habilitar no inventario](#habilitar-no-inventario)
+  - [ZSH, historico e tema Oh My Posh](#zsh-historico-e-tema-oh-my-posh)
+  - [Fonte Meslo no terminal integrado do VS Code](#fonte-meslo-no-terminal-integrado-do-vs-code)
+  - [Parametros e variaveis](#parametros-e-variaveis)
+  - [Uso rapido](#uso-rapido)
+  - [Simulacao](#simulacao)
+  - [Remocao do Snap](#remocao-do-snap)
+  - [Tags](#tags)
+  - [Logs e saidas](#logs-e-saidas)
+  - [Seguranca e impacto](#seguranca-e-impacto)
+  - [Validacao](#validacao)
+  - [Troubleshooting](#troubleshooting)
+    - [Controller Windows nativo](#controller-windows-nativo)
+    - [Chave ou repositorio APT rejeitado](#chave-ou-repositorio-apt-rejeitado)
+    - [Aplicativo Flatpak nao abre](#aplicativo-flatpak-nao-abre)
+    - [ZSH falha ao iniciar](#zsh-falha-ao-iniciar)
+    - [Git rejeita pull divergente](#git-rejeita-pull-divergente)
+  - [Recuperacao](#recuperacao)
 
 ## Objetivo e escopo
 
@@ -56,6 +70,189 @@ Alvo:
 
 O bootstrap nao instala `curl` ou `tar`; dependencias ausentes causam falha antes
 de qualquer download.
+
+## Importacao grafica de certificados
+
+A role `base` instala `seahorse` (Senhas e chaves), `gnome-keyring` e
+`gnome-keyring-pkcs11` pelos repositorios oficiais do Ubuntu Desktop 26.04 LTS
+amd64. O Seahorse fornece a interface grafica; o GNOME Keyring e seu modulo
+PKCS#11 fornecem o backend para armazenar chaves e certificados compativeis.
+A instalacao usa APT com `state: present`, respeita `--check --diff` e nao
+importa certificados nem modifica a confianca em autoridades certificadoras.
+
+Para simular somente essa instalacao e as validacoes obrigatorias:
+
+```bash
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/lab/hosts.yml \
+  --limit workstation01 --tags base --dry-run
+```
+
+Para aplicar, use o mesmo comando sem `--dry-run`; sao necessarios rede e
+privilegios de instalacao no alvo. O wrapper registra a auditoria em
+`artifacts/logs/`. Pacotes ja instalados nao sao reinstalados.
+
+Depois da aplicacao, encerre e inicie novamente a sessao GNOME do usuario e
+reabra o certificado ou o aplicativo Senhas e chaves (`seahorse`). A mensagem
+"nao ha importadores compativeis" pode indicar ausencia do backend PKCS#11,
+mas tambem indisponibilidade do chaveiro na sessao ou incompatibilidade do
+certificado; instalar os pacotes nao garante habilitar o botao Importar.
+
+**Importante:** importar uma CA como `local-ca.crt` no chaveiro nao a torna
+automaticamente confiavel para HTTPS no sistema, Firefox, Chromium ou aplicativos
+Flatpak. Cada consumidor pode usar um repositorio de confianca diferente. Antes
+de confiar em uma CA, confirme sua origem e impressao digital por canal seguro;
+essa confianca exige uma operacao separada e explicita. Nao importe chaves
+privadas para corrigir um problema de confianca em uma CA.
+
+O teste local `tests/ansible/base-certificates.yml` verifica os pacotes e o
+contrato declarativo sem instalar nada. A importacao pela interface e a segunda
+aplicacao APT precisam de validacao em VM descartavel com sessao GNOME. Para
+desfazer a selecao, remova os tres pacotes de `base_packages`; isso nao os
+desinstala. Uma eventual remocao via APT deve ser revisada separadamente, pois
+o GNOME Keyring pode atender outros aplicativos. Certificados importados
+manualmente devem ser removidos no repositorio em que foram importados.
+
+### Importacao de CA por CLI
+
+Execute no alvo Ubuntu, nao no controller por engano. Os exemplos abaixo sao
+operacoes manuais fora do playbook e nao recebem a auditoria do wrapper. Registre
+data, destino e impressao digital conforme sua politica, sem registrar chaves
+privadas ou senhas. Substitua o caminho de exemplo pelo certificado publico da
+CA; nao use o certificado do servidor (`tls-leaf.crt`) como autoridade raiz.
+
+Primeiro, consulte o certificado sem modificar a confianca:
+
+```bash
+CERT="$HOME/Downloads/local-ca.crt"
+openssl x509 -in "$CERT" -noout -subject -issuer -dates -fingerprint -sha256
+openssl x509 -in "$CERT" -noout -text
+```
+
+Confira a impressao digital por canal independente e confiavel, validade e
+`Basic Constraints: CA:TRUE`. Em geral, a CA raiz sera autoassinada; apenas ter
+subject igual ao issuer nao comprova legitimidade. O arquivo deve conter um
+unico certificado PEM (`BEGIN CERTIFICATE`), nunca uma chave privada. Se o
+original for DER, converta para outro arquivo antes de prosseguir:
+
+```bash
+openssl x509 -inform DER -in "$HOME/Downloads/local-ca.der" \
+  -out "$HOME/Downloads/local-ca.crt"
+```
+
+**Impacto:** adicionar essa CA ao sistema permite que consumidores desse
+repositorio aceitem certificados emitidos por ela, para todos os usuarios.
+Somente depois da verificacao e da decisao explicita de confiar, execute:
+
+```bash
+sudo install -m 0644 -- "$CERT" /usr/local/share/ca-certificates/local-dev-ca.crt
+sudo update-ca-certificates
+openssl verify -CAfile /etc/ssl/certs/ca-certificates.crt "$CERT"
+```
+
+Escolha um nome exclusivo; nao sobrescreva uma CA existente sem comparar a
+impressao digital e preservar uma copia para recuperacao. `update-ca-certificates`
+nao tem dry-run: a consulta com OpenSSL acima e apenas inspecao, nao simulacao
+da atualizacao. Nao use `--fresh` como etapa habitual. Reinicie os aplicativos
+que mantem o repositorio em memoria. Verificar a CA nao comprova a validade de
+um servidor: ainda precisam ser verificados cadeia, nome DNS e validade.
+
+Para remover apenas a CA adicionada neste exemplo, confirme o caminho e o
+impacto nas conexoes antes de executar:
+
+```bash
+sudo rm -- /usr/local/share/ca-certificates/local-dev-ca.crt
+sudo update-ca-certificates
+```
+
+Se o arquivo substituiu uma CA anterior, restaure a copia anterior em vez de
+remove-lo e atualize novamente. A remocao nao elimina importacoes feitas em
+outros repositorios nem encerra conexoes ja estabelecidas.
+
+Para um aplicativo que usa NSS, `certutil` (pacote `libnss3-tools`) permite
+importar no banco **ja existente e confirmado** desse aplicativo. Feche-o e
+preserve uma copia protegida do perfil antes da alteracao. Nao execute como
+root nem crie um banco vazio para tentar descobrir o destino:
+
+```bash
+NSS_DB="$HOME/.mozilla/firefox/SEU-PERFIL"
+certutil -L -d "sql:$NSS_DB"
+certutil -A -d "sql:$NSS_DB" -n 'Local Dev CA' -t 'C,,' -i "$CERT"
+certutil -L -d "sql:$NSS_DB" -n 'Local Dev CA'
+```
+
+`SEU-PERFIL` e um placeholder; obtenha o diretorio real em `about:support` no
+Firefox. `C,,` concede confianca como CA para TLS nesse banco, nao no Ubuntu.
+Confirme que o apelido nao existe antes de importar; nao repita a operacao
+cegamente. Para remover a entrada confirmada, com o aplicativo fechado, use
+`certutil -D -d "sql:$NSS_DB" -n 'Local Dev CA'`. Esses comandos tambem nao
+oferecem dry-run. Politicas do navegador podem controlar ou substituir a
+confianca configurada pelo usuario.
+
+### Importacao pela interface grafica
+
+Para o visualizador GNOME da imagem:
+
+1. Inicie uma sessao GNOME normal do usuario, sem `sudo`, com o chaveiro disponivel.
+2. Abra o certificado `.crt` pelo gerenciador de arquivos ou execute
+  `gcr-viewer "$HOME/Downloads/local-ca.crt"`.
+3. Confira emissor, validade e impressao digital; compare com a inspecao OpenSSL
+  e a origem confiavel descritas acima.
+4. Se **Importar** estiver habilitado, revise o destino/token oferecido pelo
+  importador antes de confirmar. Desbloqueie-o se solicitado, sem remover sua senha.
+5. Confira o objeto no gerenciador do token correspondente. O Seahorse pode
+  exibir objetos PKCS#11 quando esse backend e essa visualizacao estiverem
+  disponiveis na versao instalada.
+
+Se nao existir destino gravavel compativel, pare: a instalacao do Seahorse nao
+garante que um certificado X.509 avulso seja importavel pela interface. Nao
+confunda a importacao de chaves PGP/SSH do Seahorse com importacao de CAs TLS.
+Nao remova arquivos do chaveiro nem importe uma chave privada como tentativa
+de desbloquear o botao. Para confiar em uma CA no Ubuntu, use o fluxo CLI do
+sistema; o visualizador GNOME nao substitui `update-ca-certificates`.
+
+Para confiar na CA apenas no Firefox, ha um fluxo grafico proprio:
+
+1. Abra **Configuracoes > Privacidade e seguranca > Certificados > Ver certificados**.
+2. Na aba **Autoridades**, escolha **Importar** e selecione o certificado publico da CA.
+3. Apos validar a origem, selecione a confianca para identificar sites e confirme.
+4. Confira a entrada e sua impressao digital em **Autoridades**. Para desfazer,
+  selecione somente essa CA e use **Excluir ou desconfiar**.
+
+Os nomes dos controles podem variar por versao/idioma. Esse fluxo modifica o
+perfil do Firefox, nao o chaveiro GNOME. Certificados pessoais com chave privada
+(PKCS#12, `.p12`/`.pfx`) pertencem a **Seus certificados**, tem finalidade de
+autenticacao do cliente e exigem tratamento e backup de secrets separados.
+
+### Onde os certificados ficam armazenados
+
+O arquivo original em Downloads permanece no lugar; a importacao cria uma
+copia ou objeto no destino. Nao mova nem edite diretamente arquivos internos
+dos bancos enquanto os aplicativos estiverem em uso.
+
+| Metodo/destino | Armazenamento apos importacao | Alcance |
+| --- | --- | --- |
+| CLI, CA local do Ubuntu | Fonte em `/usr/local/share/ca-certificates/local-dev-ca.crt`; links PEM/hash em `/etc/ssl/certs/`; bundle gerado em `/etc/ssl/certs/ca-certificates.crt` | Consumidores da confianca do sistema, todos os usuarios |
+| GNOME/GCR, token PKCS#11 | No token escolhido; para armazenamento local do GNOME Keyring, normalmente sob `${XDG_DATA_HOME:-$HOME/.local/share}/keyrings/`, conforme backend/versao | Usuario e aplicativos que consultam esse token; nao concede confianca global automaticamente |
+| Token PKCS#11 de hardware | No dispositivo, conforme capacidade e politica do token; nao necessariamente em arquivo local | Consumidores desse token |
+| Firefox, GUI ou `certutil` | `cert9.db` no diretorio do perfil mostrado em `about:support`; `key4.db` guarda material de chaves quando aplicavel | Perfil selecionado; leitura adicional da confianca do SO depende da versao/configuracao |
+| Chromium/Chrome com NSS | Banco NSS escolhido pelo aplicativo; caminhos comuns incluem `~/.pki/nssdb` e `${XDG_DATA_HOME:-$HOME/.local/share}/pki/nssdb` | Depende da versao e de politicas; confirme no gerenciador de certificados antes de usar `certutil` |
+
+O chaveiro de senhas `login.keyring` nao e um bundle de CAs: nao suponha que
+certificados importados estejam nele. O backend define os arquivos e formatos;
+gerencie objetos pela interface/API, nao copiando um `.crt` para `keyrings/`.
+Nao edite o bundle do sistema manualmente, pois ele e regenerado.
+
+Em Firefox Flatpak, o perfil pode estar sob `~/.var/app/org.mozilla.firefox/`;
+em Snap, sob `~/snap/firefox/`. Use sempre o caminho informado pelo aplicativo,
+nao o exemplo do host. Sandboxes, Java e outros runtimes podem manter bancos
+proprios ou nao enxergar a confianca do host. Importar em um destino nao garante
+importacao nos demais.
+
+Referencias: [manual de update-ca-certificates](https://manpages.debian.org/trixie/ca-certificates/update-ca-certificates.8.en.html)
+e ajuda local `man certutil`. Procedimentos documentados; importacoes, remocoes
+e validacao grafica devem ser testadas em ambiente descartavel, nao no desktop
+de trabalho sem autorizacao.
 
 ## Estrutura
 
