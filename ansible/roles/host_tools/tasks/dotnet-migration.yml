@@ -1,0 +1,134 @@
+---
+- name: Exigir confirmacao para remocao do .NET legado
+  ansible.builtin.assert:
+    that:
+      - ansible_check_mode or host_tools_confirm_remove_legacy_dotnet | bool
+      - host_tools_dotnet_install_dir == ubuntu_desktop_home ~ '/.dotnet'
+    fail_msg: A migracao real exige confirmacao explicita e destino .NET no home.
+
+- name: Consultar SDK 8 legado e link dotnet8 sem seguir links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+  loop:
+    - /opt/dotnet-sdk-8
+    - /usr/local/bin/dotnet8
+  register: host_tools_dotnet_legacy_paths
+
+- name: Validar escopo fixo dos caminhos legados
+  ansible.builtin.assert:
+    that:
+      - >-
+        not host_tools_dotnet_legacy_paths.results[0].stat.exists or
+        (host_tools_dotnet_legacy_paths.results[0].stat.isdir and
+         not host_tools_dotnet_legacy_paths.results[0].stat.islnk)
+      - >-
+        not host_tools_dotnet_legacy_paths.results[1].stat.exists or
+        (host_tools_dotnet_legacy_paths.results[1].stat.islnk and
+         host_tools_dotnet_legacy_paths.results[1].stat.lnk_source == '/opt/dotnet-sdk-8/dotnet')
+    fail_msg: Caminhos legados inesperados; interrompendo para revisao manual.
+
+- name: Consultar impacto da remocao dos pacotes .NET legados
+  ansible.builtin.command:
+    argv: >-
+      {{ ['apt-get', '--simulate', 'remove'] + host_tools_dotnet_legacy_packages }}
+  vars:
+    host_tools_dotnet_legacy_packages: &legacy_dotnet_packages
+      - aspnetcore-runtime-10.0
+      - aspnetcore-targeting-pack-10.0
+      - dotnet-apphost-pack-10.0
+      - dotnet-host-10.0
+      - dotnet-hostfxr-10.0
+      - dotnet-runtime-10.0
+      - dotnet-sdk-10.0
+      - dotnet-sdk-aot-10.0
+      - dotnet-targeting-pack-10.0
+      - dotnet-templates-10.0
+  environment:
+    LC_ALL: C
+  register: host_tools_dotnet_legacy_apt_plan
+  check_mode: false
+  changed_when: false
+
+- name: Bloquear remocao de consumidores fora do escopo .NET
+  ansible.builtin.assert:
+    that:
+      - >-
+        (host_tools_dotnet_legacy_apt_plan.stdout_lines
+         | select('match', '^Remv ')
+         | map('split') | map(attribute=1)
+         | difference(host_tools_dotnet_legacy_packages) | length) == 0
+    fail_msg: O APT removeria outros consumidores; revise as dependencias antes da migracao.
+  vars:
+    host_tools_dotnet_legacy_packages: *legacy_dotnet_packages
+
+- name: Informar escopo e limitacoes da migracao simulada
+  ansible.builtin.debug:
+    msg:
+      - "{{ host_tools_dotnet_legacy_apt_plan.stdout_lines }}"
+      - >-
+        No modo real sera preservado um backup privado de /opt/dotnet-sdk-8
+        em ~/.dotnet/artifacts antes da remocao. Check mode nao cria esse backup.
+        SDKs e dados ja existentes em ~/.dotnet nao serao removidos.
+
+- name: Preservar instalacao SDK 8 legada antes da remocao
+  when:
+    - not ansible_check_mode
+    - host_tools_dotnet_legacy_paths.results[0].stat.exists
+  block:
+    - name: Criar diretorio privado para backups da migracao .NET
+      ansible.builtin.file:
+        path: "{{ host_tools_dotnet_install_dir }}/artifacts"
+        state: directory
+        owner: "{{ ubuntu_desktop_user }}"
+        group: "{{ ubuntu_desktop_user }}"
+        mode: '0700'
+
+    - name: Reservar diretorio exclusivo para backup do SDK 8 legado
+      ansible.builtin.tempfile:
+        state: directory
+        path: "{{ host_tools_dotnet_install_dir }}/artifacts"
+        prefix: legacy-sdk8-backup-
+      register: host_tools_dotnet_legacy_backup
+
+    - name: Arquivar SDK 8 legado para recuperacao
+      ansible.builtin.command:
+        argv:
+          - tar
+          - -czf
+          - "{{ host_tools_dotnet_legacy_backup.path }}/dotnet-sdk-8.tar.gz"
+          - -C
+          - /opt
+          - dotnet-sdk-8
+        creates: "{{ host_tools_dotnet_legacy_backup.path }}/dotnet-sdk-8.tar.gz"
+      become: true
+
+    - name: Proteger backup do SDK 8 legado
+      ansible.builtin.file:
+        path: "{{ host_tools_dotnet_legacy_backup.path }}/dotnet-sdk-8.tar.gz"
+        state: file
+        owner: "{{ ubuntu_desktop_user }}"
+        group: "{{ ubuntu_desktop_user }}"
+        mode: '0600'
+      become: true
+
+    - name: Registrar caminho do backup preservado
+      ansible.builtin.debug:
+        msg: "Backup preservado: {{ host_tools_dotnet_legacy_backup.path }}/dotnet-sdk-8.tar.gz"
+
+- name: Remover somente pacotes .NET legados revisados
+  ansible.builtin.apt:
+    name: *legacy_dotnet_packages
+    state: absent
+    autoremove: false
+    purge: false
+  become: true
+
+- name: Remover link e diretorio legados do SDK 8
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /usr/local/bin/dotnet8
+    - /opt/dotnet-sdk-8
+  become: true

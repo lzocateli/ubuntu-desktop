@@ -1,6 +1,8 @@
 ---
 base_packages:
   - acl
+  - ansible-lint
+  - bats
   - ca-certificates
   - curl
   - fontconfig
@@ -14,8 +16,11 @@ base_packages:
   - openssl
   - python3-debian
   - seahorse
+  - shellcheck
+  - shfmt
   - tilix
   - tmux
   - unzip
   - xdg-utils
+  - yamllint
   - zsh

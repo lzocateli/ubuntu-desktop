@@ -15,6 +15,15 @@
           - "'ca-certificates' in base_packages"
           - "'libnss3-tools' in base_packages"
 
+    - name: Garantir instalacao dos validadores de automacao
+      ansible.builtin.assert:
+        that:
+          - "'bats' in base_packages"
+          - "'shellcheck' in base_packages"
+          - "'shfmt' in base_packages"
+          - "'ansible-lint' in base_packages"
+          - "'yamllint' in base_packages"
+
     - name: Carregar tasks base sem executar instalacoes
       ansible.builtin.set_fact:
         base_certificates_test_tasks: >-

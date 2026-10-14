@@ -106,8 +106,8 @@ defaults da role.
 | 1Password Desktop | Repositorio oficial | `1password --version` |
 | 1Password CLI | Repositorio oficial | `op --version` |
 | Visual Studio Code | Repositorio Microsoft no host | `code --version` |
-| .NET SDK 8 | Arquivo oficial Microsoft fixado por versao e SHA-512 em `/opt/dotnet-sdk-8` | `dotnet8 --list-sdks` |
-| .NET SDK 10 | Repositorio Ubuntu | Presenca da major 10 em `dotnet --list-sdks` |
+| .NET SDK 8 | Arquivo oficial Microsoft fixado por versao e SHA-512 em `~/.dotnet` | `~/.dotnet/dotnet --list-sdks` |
+| .NET SDK 10 | Arquivo oficial Microsoft fixado por versao e SHA-512 no mesmo `~/.dotnet` | `dotnet --version` no projeto com `global.json` |
 | Certificado HTTPS .NET | `openssl`, `libnss3-tools` e trust por usuario | `dotnet dev-certs https --check --trust` |
 
 O Podman e executado sem `sudo` e sem daemon root. A role gerencia
@@ -122,12 +122,16 @@ O pacote Mullvad fornece aplicativo grafico e `mullvad` CLI, mas a role nao
 informa numero de conta, inicia sessao nem conecta a VPN. A instalacao do Chrome
 e do Mullvad adiciona repositorios APT oficiais dedicados.
 
-No Ubuntu 26.04, o APT fornece o .NET SDK 10, mas nao publica o SDK 8. A role
-instala a versao 8.0.425 do arquivo oficial Linux x64 com SHA-512 verificado,
-isolada em `/opt/dotnet-sdk-8` e acessivel pelo comando `dotnet8`; o comando
-`dotnet` continua usando o SDK 10 do Ubuntu. Atualize a versao e o hash juntos
-em `ansible/roles/host_tools/defaults/main.yml`. O .NET 8 encerra suporte em
-10/11/2026; mantenha-o somente enquanto houver projetos que precisem dele.
+No Ubuntu 26.04, a role instala os SDKs 8.0.425 e 10.0.402 dos arquivos oficiais
+Linux x64 com SHA-512 verificado, lado a lado em `~/.dotnet`, pertencente ao
+usuario do desktop. Nao instala SDK pelo APT nem cria um comando `dotnet8`.
+A role `terminal` prioriza `~/.dotnet` no PATH e define `DOTNET_ROOT`.
+Selecione a versao de cada projeto com `global.json`; veja o
+[procedimento operacional](automacao-ansible.md#sdks-net-por-usuario-e-globaljson).
+Atualize versao e hash juntos nos defaults ou na lista `host_tools_dotnet_sdks`.
+Instalacoes antigas do sistema nao sao removidas automaticamente. O .NET 8
+encerra suporte em 10/11/2026; mantenha-o somente enquanto houver projetos que
+precisem dele.
 
 O repositorio Microsoft APT configurado para Ubuntu 26.04 nao publica o pacote
 PowerShell. A role instala o tarball oficial Linux x64 do PowerShell 7.6.6 com

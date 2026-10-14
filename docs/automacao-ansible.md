@@ -17,6 +17,7 @@
     - [Criptografar e descriptografar o Vault](#criptografar-e-descriptografar-o-vault)
   - [Configuracao Git do usuario](#configuracao-git-do-usuario)
   - [Ferramentas de desenvolvimento](#ferramentas-de-desenvolvimento)
+  - [SDKs .NET por usuario e global.json](#sdks-net-por-usuario-e-globaljson)
   - [Montagem persistente de disco](#montagem-persistente-de-disco)
   - [Cliente Nextcloud](#cliente-nextcloud)
   - [Chaves SSH e NuGet](#chaves-ssh-e-nuget)
@@ -70,6 +71,23 @@ Alvo:
 
 O bootstrap nao instala `curl` ou `tar`; dependencias ausentes causam falha antes
 de qualquer download.
+
+A role `base` instala os validadores pelos repositorios Ubuntu: Bats,
+ShellCheck, shfmt, ansible-lint e yamllint. Eles ficam disponiveis no PATH do
+sistema, e a role verifica seus comandos `--version`. Para instalar ou simular,
+use o wrapper com inventario explicito, `--limit` e `--tags base`; acrescente
+`--dry-run` para simular sem instalar dependencias. As versoes acompanham o
+repositorio APT configurado no alvo, nao o ambiente Python do bootstrap.
+
+Comandos de validacao apos instalar, desde a raiz do repositorio:
+
+```bash
+bats tests/bash/
+shellcheck scripts/bash/run-ansible.sh
+shfmt -i 2 -ci -d scripts/bash/run-ansible.sh
+ansible-lint --offline ansible/roles/host_tools/tasks/dotnet-sdk.yml
+yamllint -d relaxed ansible/roles/base/
+```
 
 ## Importacao grafica de certificados
 
@@ -480,10 +498,156 @@ Node/npm. A versao e o SHA-256 ficam fixados nas variaveis da role, o binario e
 extraido em `/opt/copilot-cli/<versao>` e `/usr/local/bin/copilot` aponta para a
 versao ativa. A validacao executa `copilot --version` no host.
 
-O mesmo runtime define `SSL_CERT_DIR` para que clientes OpenSSL reconhecam o
-certificado HTTPS criado por `.NET 10`. A role `host_tools` consulta a confianca
-antes de executar `dotnet dev-certs https --trust`; em check mode, apenas a
-consulta ocorre e a mutacao e informada como pendente.
+O mesmo runtime define `DOTNET_ROOT="$HOME/.dotnet"` e prioriza `~/.dotnet` e
+`~/.dotnet/tools` no PATH, sem duplicar esses prefixos ao recarregar o shell.
+Tambem define `SSL_CERT_DIR` para o certificado HTTPS de desenvolvimento.
+A role `host_tools` usa explicitamente o executavel do usuario; consulta e
+eventual criacao/confianca do certificado ocorrem somente no modo real.
+
+### SDKs .NET por usuario e global.json
+
+No Ubuntu Desktop 26.04 LTS amd64, `host_tools` instala os SDKs 8.0.425 e
+10.0.402 lado a lado em `{{ ubuntu_desktop_home }}/.dotnet` (por padrao,
+`/home/lzocateli/.dotnet`). Os arquivos Linux x64 oficiais sao verificados por
+SHA-512 antes da extracao, sem `sudo` para instalar os SDKs. O comando e sempre
+`dotnet`; nao e necessario alternar para `dotnet8`. Os SDKs ficam em
+`~/.dotnet/sdk/<versao>`, os runtimes em `~/.dotnet/shared/` e as ferramentas
+globais em `~/.dotnet/tools/` quando instaladas pelo usuario.
+
+Para simular a instalacao e a configuracao do shell, desde a raiz do repositorio:
+
+```bash
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/lab/hosts.yml \
+  --limit workstation01 --tags host_tools,terminal --dry-run
+```
+
+Para aplicar, remova `--dry-run`. Essas tags tambem aplicam as demais ferramentas
+e configuracoes dessas roles: revise o inventario e o plano antes da execucao.
+O wrapper mantem logs em `artifacts/logs/`. A simulacao consulta a presenca dos
+SDKs e informa os ausentes, mas nao baixa nem extrai arquivos e nao consulta
+certificados .NET. No modo real, os temporarios exclusivos ficam em
+`~/.dotnet/artifacts/` e sao removidos ao terminar, inclusive em caso de falha.
+SDKs cuja instalacao ja esta presente nao sao baixados novamente.
+
+Abra uma nova sessao apos aplicar a role `terminal` ou carregue o runtime:
+
+```bash
+. "$HOME/.local/lib/ubuntu-desktop/development-shell.sh"
+command -v dotnet
+dotnet --list-sdks
+```
+
+O primeiro comando de consulta deve apontar para `~/.dotnet/dotnet`, e a lista
+deve mostrar ambos os SDKs em `~/.dotnet/sdk`. Reinicie tambem o VS Code para
+atualizar o ambiente herdado; extensoes podem ter runtimes proprios, que nao
+sao gerenciados por esta role.
+
+Em cada repositorio de projeto, crie ou edite conscientemente um `global.json`
+na raiz e versione-o junto do codigo. Exemplo de selecao exata do SDK 8:
+
+```json
+{
+  "sdk": {
+    "version": "8.0.425",
+    "rollForward": "disable",
+    "allowPrerelease": false
+  }
+}
+```
+
+Para um projeto .NET 10, use `"version": "10.0.402"`. Verifique executando
+`dotnet --version` dentro da pasta do projeto. O resolvedor procura `global.json`
+no diretorio atual e nos ancestrais; fora de uma selecao explicita, normalmente
+usa o maior SDK instalado. Com `rollForward: disable`, um SDK ausente causa
+falha em vez de selecionar outra versao. Para aceitar patches da mesma feature
+band, escolha explicitamente `latestPatch`. `global.json` **nao instala SDKs**
+e nao altera o `TargetFramework` do `.csproj`.
+
+Para adicionar ou atualizar SDKs, ajuste `host_tools_dotnet_sdks` no inventario
+com objetos `version` e `sha512` obtidos dos metadados oficiais Microsoft, ou
+atualize os pares `host_tools_dotnet_sdk8_version`/`host_tools_dotnet_sdk8_sha512`
+e `host_tools_dotnet_sdk10_version`/`host_tools_dotnet_sdk10_sha512` nos defaults.
+Use versoes completas estaveis; nao use canais flutuantes. Instale primeiro o
+SDK requerido e so entao atualize o `global.json`. O .NET 8 encerra suporte em
+10/11/2026; planeje a migracao dos projetos que ainda o exigem.
+
+**Migracao e recuperacao:** a instalacao normal nao remove .NET anterior.
+As tags `dotnet` e `dotnet_env` instalam somente os SDKs do usuario e atualizam
+o runtime compartilhado e seu carregamento em `.profile`, `.bashrc` e `.zshrc`,
+sem reaplicar as demais ferramentas do host/terminal. O preflight continua
+obrigatorio. `dotnet_env` atualiza o runtime compartilhado inteiro, que tambem
+contem integracao com certificados, aliases e funcoes Node/Podman.
+
+Para remover explicitamente o legado instalado pela versao anterior da role,
+simule primeiro:
+
+```bash
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/lab/hosts.yml \
+  --limit workstation01 --tags dotnet,dotnet_env \
+  --remove-legacy-dotnet --dry-run
+```
+
+Revise a saida e interrompa builds/servicos que usam a instalacao antiga.
+O escopo e fixo: dez pacotes .NET/ASP.NET 10 do APT, incluindo o SDK AOT,
+`/opt/dotnet-sdk-8` e o link `/usr/local/bin/dotnet8`. A role consulta
+`apt-get --simulate remove` e bloqueia remocoes de outros pacotes; tambem
+recusa caminhos/links inesperados. Nao usa purge ou autoremove. O check mode
+nao cria backup, nao remove arquivos/pacotes e nao baixa SDKs. Para aplicar:
+
+```bash
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/lab/hosts.yml \
+  --limit workstation01 --tags dotnet,dotnet_env \
+  --remove-legacy-dotnet --confirm-remove-legacy-dotnet
+```
+
+A remocao exige rede/privilegios administrativos apropriados ao APT e
+confirmacao explicita; o wrapper nao solicita nem recebe senhas em argumentos.
+Antes de remover o SDK 8 em `/opt`, a role cria um backup exclusivo em
+`~/.dotnet/artifacts/legacy-sdk8-backup-*/dotnet-sdk-8.tar.gz`, com diretorio
+`0700` e arquivo `0600`. O caminho fica no log do wrapper. O backup e
+preservado, nao apagado pelo cleanup de downloads. A remocao ocorre antes da
+nova instalacao; se um download falhar, use o backup ou execute novamente
+apos resolver a causa. Instalar e remover nao e uma transacao atomica.
+
+Para recuperar o SDK legado, confira o arquivo de backup e extraia-o com
+`sudo tar -xzf CAMINHO_DO_BACKUP -C /opt`, somente se o destino nao contiver
+outra instalacao que seria sobrescrita. Recrie o link, se necessario, com
+`sudo ln -s /opt/dotnet-sdk-8/dotnet /usr/local/bin/dotnet8`, apos confirmar
+que ele nao existe. Os pacotes APT podem ser reinstalados com
+`sudo apt-get install dotnet-sdk-10.0 dotnet-sdk-aot-10.0`, conforme disponibilidade
+do repositorio; isso pode instalar versoes mais novas que as removidas.
+
+SDKs ja existentes em `~/.dotnet` nao sao apagados pela migracao, mesmo que
+nao estejam na lista gerenciada: projetos podem depender deles. Para voltar
+ao executavel do sistema, restaure o PATH/DOTNET_ROOT anterior em uma sessao
+de teste e confira `command -v dotnet`. Nao apague `~/.dotnet` indiscriminadamente.
+Retirar uma versao da lista Ansible nao a desinstala. Falhas de checksum devem
+interromper a instalacao, nunca ser contornadas desabilitando a verificacao.
+
+Valide `dotnet --list-sdks` e `dotnet --version` em projetos das duas versoes.
+Os testes locais cobrem metadados, protecao do check mode e PATH Bash/ZSH;
+download/extracao reais e segunda aplicacao devem ser validados em ambiente
+descartavel. Nao ha migracao automatica dos `global.json` de projetos existentes.
+
+Evidencia operacional de 14/10/2026 no host `vision`, com autorizacao explicita:
+os dez pacotes APT legados, `/opt/dotnet-sdk-8` e o link `dotnet8` foram
+removidos. SDKs 8.0.425 e 10.0.402 foram instalados no home, mantendo o SDK
+10.0.400 preexistente. Fixtures isoladas de `global.json` selecionaram 8.0.425
+e 10.0.402 corretamente. A reaplicacao de `base,dotnet,dotnet_env` com migracao
+confirmada terminou com `changed=0` e `failed=0`.
+
+O backup preservado foi
+`~/.dotnet/artifacts/legacy-sdk8-backup-99yyvjf6/dotnet-sdk-8.tar.gz` (`0600`).
+O log da migracao e `artifacts/logs/ansible-20261014T220149Z-1152921.log`;
+logs/backup sao locais e nao devem ser versionados. Bats 1.13.0, ShellCheck
+0.11.0, shfmt 3.12.0, ansible-lint 26.1.1 e yamllint 1.37.1 ficaram disponiveis.
+Os 16 testes Bats focados passaram; a suite completa teve 21 sucessos e
+quatro falhas por permissao de execucao do renderizador 1Password no repositorio,
+nao alterado nesta migracao. ShellCheck do wrapper, shfmt no estilo existente,
+ansible-lint das tasks novas/base e yamllint focado passaram.
 
 ## Montagem persistente de disco
 
@@ -767,6 +931,8 @@ Wrapper:
 | `--verbose` | Nao | Adiciona `-v` ao Ansible |
 | `--remove-snap` | Nao | Inclui a role Snap |
 | `--confirm-remove-snap` | Real com Snap | Confirma impacto destrutivo |
+| `--remove-legacy-dotnet` | Nao | Inclui migracao .NET de escopo fixo, opt-in |
+| `--confirm-remove-legacy-dotnet` | Real com migracao .NET | Confirma remocao do legado apos revisao |
 
 Variaveis principais:
 
@@ -778,6 +944,8 @@ Variaveis principais:
 | `terminal_git_user_email` | E-mail definido no inventario | E-mail registrado nos commits |
 | `flatpak_apps_install_firefox` | `false` | Instala Firefox Flatpak |
 | `host_tools_install_1password` | `true` | Instala Desktop e CLI |
+| `host_tools_dotnet_install_dir` | `{{ ubuntu_desktop_home }}/.dotnet` | Destino por usuario, validado pela role |
+| `host_tools_dotnet_sdks` | SDKs 8.0.425 e 10.0.402 com SHA-512 | Versoes instaladas lado a lado, sem remover as anteriores |
 | `host_tools_configure_dotnet_dev_certificate` | `true` | Cria e confia no certificado HTTPS .NET do usuario |
 | `terminal_configure_zsh` | `true` | Configura e define ZSH como shell |
 | `terminal_oh_my_posh_config_file` | `atomic.omp-VISION.json` | Tema distribuido pela role terminal |

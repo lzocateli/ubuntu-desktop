@@ -1,4 +1,9 @@
 export SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs"
+export DOTNET_ROOT="$HOME/.dotnet"
+case "$PATH" in
+  "$DOTNET_ROOT:$DOTNET_ROOT/tools:"*) ;;
+  *) export PATH="$DOTNET_ROOT:$DOTNET_ROOT/tools:$PATH" ;;
+esac
 
 alias lh='ls -lha'
 

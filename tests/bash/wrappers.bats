@@ -56,6 +56,42 @@ EOF
   [[ "${output}" == *"exige --confirm-remove-snap"* ]]
 }
 
+@test "wrapper bloqueia remocao real do dotnet legado sem confirmacao" {
+  run bash "${WRAPPER}" --inventory "${INVENTORY}" --limit workstation01 --remove-legacy-dotnet
+
+  [ "${status}" -eq 2 ]
+  [[ "${output}" == *"exige --confirm-remove-legacy-dotnet"* ]]
+}
+
+@test "wrapper rejeita confirmacao dotnet sem pedido de remocao" {
+  run bash "${WRAPPER}" --inventory "${INVENTORY}" --limit workstation01 --confirm-remove-legacy-dotnet
+
+  [ "${status}" -eq 2 ]
+  [[ "${output}" == *"exige --remove-legacy-dotnet"* ]]
+}
+
+@test "wrapper propaga migracao dotnet e check mode sem confirmar remocao real" {
+  stub_dir="${BATS_TEST_TMPDIR}/bin"
+  capture="${BATS_TEST_TMPDIR}/arguments.txt"
+  mkdir -p "${stub_dir}"
+  cat >"${stub_dir}/ansible-playbook" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$@" >"${capture}"
+EOF
+  chmod +x "${stub_dir}/ansible-playbook"
+
+  run env PATH="${stub_dir}:${PATH}" bash "${WRAPPER}" \
+    --inventory "${INVENTORY}" --limit workstation01 --tags dotnet,dotnet_env \
+    --remove-legacy-dotnet --dry-run
+
+  [ "${status}" -eq 0 ]
+  grep -Fx -- '--check' "${capture}"
+  grep -Fx -- '--diff' "${capture}"
+  grep -Fx -- 'dotnet,dotnet_env,dotnet_migration' "${capture}"
+  grep -Fx -- 'host_tools_remove_legacy_dotnet=true' "${capture}"
+  grep -Fx -- 'host_tools_confirm_remove_legacy_dotnet=false' "${capture}"
+}
+
 @test "wrapper carrega Ansible Vault de diretorio externo sem expor senha" {
   stub_dir="${BATS_TEST_TMPDIR}/bin"
   capture="${BATS_TEST_TMPDIR}/arguments.txt"

@@ -28,6 +28,24 @@ EOF
   export PATH="${stub_dir}:${PATH}"
 }
 
+@test "runtime prioriza .NET do usuario sem duplicar PATH ao recarregar" {
+  for shell in bash zsh; do
+    run "${shell}" -c '
+      . "$RUNTIME"
+      previous_path="$PATH"
+      . "$RUNTIME"
+      test "$DOTNET_ROOT" = "$HOME/.dotnet" &&
+        test "$PATH" = "$previous_path" &&
+        case "$PATH" in
+          "$DOTNET_ROOT:$DOTNET_ROOT/tools:"*) exit 0 ;;
+          *) exit 1 ;;
+        esac
+    '
+
+    [ "${status}" -eq 0 ]
+  done
+}
+
 @test "runtime configura certificado e funcoes nos shells suportados" {
   run bash -c '. "$RUNTIME"; declare -F node npm npx >/dev/null; printf "%s" "$SSL_CERT_DIR"'
 

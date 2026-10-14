@@ -16,6 +16,8 @@ DRY_RUN=false
 VERBOSE=false
 REMOVE_SNAP=false
 CONFIRM_REMOVE_SNAP=false
+REMOVE_LEGACY_DOTNET=false
+CONFIRM_REMOVE_LEGACY_DOTNET=false
 LOG_FILE=""
 SECRETS_DIR="${ANSIBLE_SECRETS_DIR:-}"
 SECRETS_DIR_EXPLICIT=false
@@ -42,6 +44,8 @@ Opcoes:
   --secrets-dir CAMINHO    Diretorio externo com vault.yml e vault-password
   --remove-snap            Habilita a role destrutiva de migracao do Snap
   --confirm-remove-snap    Confirma remocao real do Snap e de seus dados
+  --remove-legacy-dotnet   Remove .NET APT 10 e SDK 8 de /opt, com backup do SDK 8
+  --confirm-remove-legacy-dotnet  Confirma remocao real do .NET legado
   --dry-run, -dryrun       Executa com --check --diff
   --verbose                Executa Ansible com -v
   --help, -help, -h        Exibe esta ajuda
@@ -111,6 +115,14 @@ parse_args() {
         CONFIRM_REMOVE_SNAP=true
         shift
         ;;
+      --remove-legacy-dotnet)
+        REMOVE_LEGACY_DOTNET=true
+        shift
+        ;;
+      --confirm-remove-legacy-dotnet)
+        CONFIRM_REMOVE_LEGACY_DOTNET=true
+        shift
+        ;;
       --dry-run | -dryrun)
         DRY_RUN=true
         shift
@@ -172,6 +184,12 @@ validate_args() {
   if [[ "${REMOVE_SNAP}" == true && "${DRY_RUN}" != true && "${CONFIRM_REMOVE_SNAP}" != true ]]; then
     fail_usage "A remocao real do Snap exige --confirm-remove-snap."
   fi
+  if [[ "${CONFIRM_REMOVE_LEGACY_DOTNET}" == true && "${REMOVE_LEGACY_DOTNET}" != true ]]; then
+    fail_usage "--confirm-remove-legacy-dotnet exige --remove-legacy-dotnet."
+  fi
+  if [[ "${REMOVE_LEGACY_DOTNET}" == true && "${DRY_RUN}" != true && "${CONFIRM_REMOVE_LEGACY_DOTNET}" != true ]]; then
+    fail_usage "A remocao real do .NET legado exige --confirm-remove-legacy-dotnet."
+  fi
   configure_external_secrets
 }
 
@@ -206,6 +224,11 @@ run_playbook() {
   if [[ -n "${SECRETS_DIR}" ]]; then
     command+=(--extra-vars "@${VAULT_FILE}")
     command+=(--vault-password-file "${VAULT_PASSWORD_FILE}")
+  fi
+  if [[ "${REMOVE_LEGACY_DOTNET}" == true ]]; then
+    effective_tags="${effective_tags:+${effective_tags},}dotnet_migration"
+    command+=(--extra-vars "host_tools_remove_legacy_dotnet=true")
+    command+=(--extra-vars "host_tools_confirm_remove_legacy_dotnet=${CONFIRM_REMOVE_LEGACY_DOTNET}")
   fi
   if [[ -n "${effective_tags}" ]]; then
     command+=(--tags "${effective_tags}")

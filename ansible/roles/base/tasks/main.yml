@@ -18,6 +18,11 @@
     - {name: ZSH, command: zsh, argument: --version}
     - {name: TMUX, command: tmux, argument: -V}
     - {name: Tilix, command: tilix, argument: --version}
+    - {name: Bats, command: bats, argument: --version}
+    - {name: ShellCheck, command: shellcheck, argument: --version}
+    - {name: shfmt, command: shfmt, argument: --version}
+    - {name: ansible-lint, command: ansible-lint, argument: --version}
+    - {name: yamllint, command: yamllint, argument: --version}
   loop_control:
     label: "{{ item.name }}"
   register: base_validation

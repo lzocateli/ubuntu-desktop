@@ -1,9 +1,18 @@
 ---
 host_tools_install_1password: true
+host_tools_remove_legacy_dotnet: false
+host_tools_confirm_remove_legacy_dotnet: false
 host_tools_configure_dotnet_dev_certificate: true
 host_tools_dotnet_sdk8_version: 8.0.425
 host_tools_dotnet_sdk8_sha512: 934b8060a7190e5909ad1fd0785db542f487b3bbf6cdd14826b02095fdd0d0394298b1634085eff302928fccc33f7c1a7253e9b87df555fc36fce819bcd2e798
-host_tools_dotnet_sdk8_install_dir: /opt/dotnet-sdk-8
+host_tools_dotnet_install_dir: "{{ ubuntu_desktop_home }}/.dotnet"
+host_tools_dotnet_sdk10_version: 10.0.402
+host_tools_dotnet_sdk10_sha512: 1904a98dda2db34ba78ba3c4fb1b224455329af91c341d83547843c1839e112b04ae699ee92fa2449a8f62249196a938723078c0c60b9f65c88539d5687729c2
+host_tools_dotnet_sdks:
+  - version: "{{ host_tools_dotnet_sdk8_version }}"
+    sha512: "{{ host_tools_dotnet_sdk8_sha512 }}"
+  - version: "{{ host_tools_dotnet_sdk10_version }}"
+    sha512: "{{ host_tools_dotnet_sdk10_sha512 }}"
 host_tools_powershell_version: 7.6.6
 host_tools_powershell_sha256: ddbc4a2d113bbd46d283cfedcbcd117a70caefd7673f41f2b4e0000badf103bc
 host_tools_powershell_install_dir: /opt/powershell
@@ -16,7 +25,6 @@ host_tools_packages:
   - azure-cli
   - claude-code
   - code
-  - dotnet-sdk-10.0
   - fuse-overlayfs
   - google-chrome-stable
   - gh

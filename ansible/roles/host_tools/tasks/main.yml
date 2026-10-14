@@ -165,57 +165,42 @@
   become: true
   when: not host_tools_powershell_installation.stat.exists
 
-- name: Consultar instalacao do .NET SDK 8
-  ansible.builtin.stat:
-    path: "{{ host_tools_dotnet_sdk8_install_dir }}/sdk/{{ host_tools_dotnet_sdk8_version }}/dotnet.dll"
-  register: host_tools_dotnet_sdk8_installation
-  become: true
+- name: Migrar instalacoes legadas do .NET com confirmacao
+  ansible.builtin.include_tasks:
+    file: dotnet-migration.yml
+    apply:
+      tags: [dotnet_migration]
+  when: host_tools_remove_legacy_dotnet | bool
+  tags: [dotnet_migration]
 
-- name: Criar diretorio de instalacao do .NET SDK 8
+- name: Validar destino e SDKs .NET do usuario
+  ansible.builtin.assert:
+    that:
+      - host_tools_dotnet_install_dir == ubuntu_desktop_home ~ '/.dotnet'
+      - host_tools_dotnet_sdks | length > 0
+      - host_tools_dotnet_sdks | map(attribute='version') | unique | length == host_tools_dotnet_sdks | length
+  tags: [dotnet]
+
+- name: Criar diretorio de instalacao do .NET do usuario
   ansible.builtin.file:
-    path: "{{ host_tools_dotnet_sdk8_install_dir }}"
+    path: "{{ host_tools_dotnet_install_dir }}"
     state: directory
-    owner: root
-    group: root
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
     mode: '0755'
-  become: true
-  when: not host_tools_dotnet_sdk8_installation.stat.exists
+  become: false
+  tags: [dotnet]
 
-- name: Baixar .NET SDK 8 oficial com checksum SHA-512
-  ansible.builtin.get_url:
-    url: "https://builds.dotnet.microsoft.com/dotnet/Sdk/{{ host_tools_dotnet_sdk8_version }}/dotnet-sdk-{{ host_tools_dotnet_sdk8_version }}-linux-x64.tar.gz"
-    dest: "/var/cache/dotnet-sdk-{{ host_tools_dotnet_sdk8_version }}-linux-x64.tar.gz"
-    checksum: "sha512:{{ host_tools_dotnet_sdk8_sha512 }}"
-    owner: root
-    group: root
-    mode: '0644'
-  become: true
-  when: not host_tools_dotnet_sdk8_installation.stat.exists
-
-- name: Extrair .NET SDK 8 isolado do SDK gerenciado pelo APT
-  ansible.builtin.unarchive:
-    src: "/var/cache/dotnet-sdk-{{ host_tools_dotnet_sdk8_version }}-linux-x64.tar.gz"
-    dest: "{{ host_tools_dotnet_sdk8_install_dir }}"
-    remote_src: true
-    creates: "{{ host_tools_dotnet_sdk8_install_dir }}/sdk/{{ host_tools_dotnet_sdk8_version }}/dotnet.dll"
-  become: true
-  when: not host_tools_dotnet_sdk8_installation.stat.exists
-
-- name: Expor .NET SDK 8 como comando separado
-  ansible.builtin.file:
-    src: "{{ host_tools_dotnet_sdk8_install_dir }}/dotnet"
-    dest: /usr/local/bin/dotnet8
-    state: link
-    owner: root
-    group: root
-  become: true
-
-- name: Remover arquivo temporario do .NET SDK 8
-  ansible.builtin.file:
-    path: "/var/cache/dotnet-sdk-{{ host_tools_dotnet_sdk8_version }}-linux-x64.tar.gz"
-    state: absent
-  become: true
-  when: not host_tools_dotnet_sdk8_installation.stat.exists
+- name: Instalar SDKs .NET lado a lado no home
+  ansible.builtin.include_tasks:
+    file: dotnet-sdk.yml
+    apply:
+      tags: [dotnet]
+  loop: "{{ host_tools_dotnet_sdks }}"
+  loop_control:
+    loop_var: host_tools_dotnet_sdk
+    label: "{{ host_tools_dotnet_sdk.version }}"
+  tags: [dotnet]
 
 - name: Criar diretorios de configuracao rootless do Podman
   ansible.builtin.file:
@@ -242,7 +227,7 @@
 
 - name: Consultar confianca do certificado HTTPS de desenvolvimento .NET
   ansible.builtin.command:
-    argv: [dotnet, dev-certs, https, --check, --trust]
+    argv: ["{{ host_tools_dotnet_install_dir }}/dotnet", dev-certs, https, --check, --trust]
   environment:
     HOME: "{{ ubuntu_desktop_home }}"
     DOTNET_CLI_HOME: "{{ ubuntu_desktop_home }}"
@@ -250,12 +235,13 @@
   register: host_tools_dotnet_dev_certificate
   changed_when: false
   failed_when: false
-  check_mode: false
-  when: host_tools_configure_dotnet_dev_certificate | bool
+  when:
+    - host_tools_configure_dotnet_dev_certificate | bool
+    - not ansible_check_mode
 
 - name: Confiar no certificado HTTPS de desenvolvimento .NET
   ansible.builtin.command:
-    argv: [dotnet, dev-certs, https, --trust]
+    argv: ["{{ host_tools_dotnet_install_dir }}/dotnet", dev-certs, https, --trust]
   environment:
     HOME: "{{ ubuntu_desktop_home }}"
     DOTNET_CLI_HOME: "{{ ubuntu_desktop_home }}"
@@ -269,16 +255,15 @@
 - name: Informar limitacao do check mode para o certificado .NET
   ansible.builtin.debug:
     msg: >-
-      O certificado HTTPS de desenvolvimento .NET ainda nao e confiavel.
-      A criacao e a confianca serao aplicadas somente no modo real.
+      A confianca do certificado HTTPS .NET nao e consultada em check mode.
+      A consulta, eventual criacao e confianca serao aplicadas somente no modo real.
   when:
     - host_tools_configure_dotnet_dev_certificate | bool
     - ansible_check_mode
-    - host_tools_dotnet_dev_certificate.rc != 0
 
 - name: Validar confianca do certificado HTTPS de desenvolvimento .NET
   ansible.builtin.command:
-    argv: [dotnet, dev-certs, https, --check, --trust]
+    argv: ["{{ host_tools_dotnet_install_dir }}/dotnet", dev-certs, https, --check, --trust]
   environment:
     HOME: "{{ ubuntu_desktop_home }}"
     DOTNET_CLI_HOME: "{{ ubuntu_desktop_home }}"
@@ -319,8 +304,6 @@
   loop:
     - {name: Podman, command: [podman, --version]}
     - {name: Podman Compose, command: [podman, compose, version]}
-    - {name: .NET SDK 8, command: [dotnet8, --list-sdks]}
-    - {name: .NET SDK 10, command: [dotnet, --list-sdks]}
     - {name: WireGuard CLI, command: [wg, --version]}
     - {name: PowerShell, command: [pwsh, --version]}
     - {name: Azure CLI, command: [az, version]}
@@ -329,7 +312,7 @@
     - {name: GitHub CLI, command: [gh, --version]}
     - {name: Claude Code CLI, command: [claude, --version]}
     - {name: VS Code, command: [code, --version]}
-    - {name: .NET SDKs, command: [dotnet, --list-sdks]}
+    - {name: .NET SDKs, command: ["{{ host_tools_dotnet_install_dir }}/dotnet", --list-sdks]}
   loop_control:
     label: "{{ item.name }}"
   register: host_tools_validation
@@ -339,25 +322,21 @@
     HOME: "{{ ubuntu_desktop_home }}"
   when: not ansible_check_mode
 
-- name: Validar versao do .NET SDK 8
+- name: Validar versoes dos SDKs .NET do usuario
   ansible.builtin.command:
-    argv: [dotnet8, --list-sdks]
-  register: host_tools_dotnet_sdk8_validation
+    argv: ["{{ host_tools_dotnet_install_dir }}/dotnet", --list-sdks]
+  register: host_tools_dotnet_sdk_validation
   changed_when: false
   failed_when: >-
-    host_tools_dotnet_sdk8_validation.rc != 0 or
-    host_tools_dotnet_sdk8_version not in host_tools_dotnet_sdk8_validation.stdout
+    host_tools_dotnet_sdk_validation.rc != 0 or
+    (host_tools_dotnet_sdk.version ~ ' [' ~ host_tools_dotnet_install_dir ~ '/sdk]')
+    not in host_tools_dotnet_sdk_validation.stdout_lines
+  loop: "{{ host_tools_dotnet_sdks }}"
+  loop_control:
+    loop_var: host_tools_dotnet_sdk
+    label: "{{ host_tools_dotnet_sdk.version }}"
   when: not ansible_check_mode
-
-- name: Validar major do .NET SDK 10
-  ansible.builtin.command:
-    argv: [dotnet, --list-sdks]
-  register: host_tools_dotnet_sdk10_validation
-  changed_when: false
-  failed_when: >-
-    host_tools_dotnet_sdk10_validation.rc != 0 or
-    '10.' not in host_tools_dotnet_sdk10_validation.stdout
-  when: not ansible_check_mode
+  tags: [dotnet]
 
 - name: Validar ferramentas 1Password
   ansible.builtin.command:

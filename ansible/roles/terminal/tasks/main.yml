@@ -267,6 +267,7 @@
     owner: "{{ ubuntu_desktop_user }}"
     group: "{{ ubuntu_desktop_user }}"
     mode: '0700'
+  tags: [dotnet_env]
 
 - name: Criar diretorios persistentes das ferramentas em container
   ansible.builtin.file:
@@ -285,6 +286,7 @@
     owner: "{{ ubuntu_desktop_user }}"
     group: "{{ ubuntu_desktop_user }}"
     mode: '0600'
+  tags: [dotnet_env]
 
 - name: Carregar integracao de desenvolvimento nos shells
   ansible.builtin.blockinfile:
@@ -305,6 +307,7 @@
       mode: '0644'
     - path: "{{ ubuntu_desktop_home }}/.zshrc"
       mode: '0644'
+  tags: [dotnet_env]
 
 - name: Instalar renderizador seguro do ambiente do 1Password
   ansible.builtin.copy:

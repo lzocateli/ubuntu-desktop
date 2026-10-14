@@ -482,24 +482,28 @@ Selecione a fonte no perfil do Tilix e reinicie o terminal.
 
 ## .NET 8 e .NET 10
 
-No Ubuntu 26.04, instale o SDK 10 pelo APT; a automacao instala o SDK 8 em
-`/opt/dotnet-sdk-8` a partir do arquivo oficial Microsoft verificado por
-SHA-512 e o expoe como `dotnet8`:
+No Ubuntu Desktop 26.04 LTS amd64, a automacao instala os SDKs 8.0.425 e
+10.0.402 no home do usuario, lado a lado em `~/.dotnet`, a partir de arquivos
+oficiais Microsoft verificados por SHA-512. Nao instale SDKs pelo APT para
+este fluxo. Aplique as roles `host_tools` e `terminal` conforme o
+[procedimento operacional](automacao-ansible.md#sdks-net-por-usuario-e-globaljson)
+e abra uma nova sessao antes de validar:
 
 ```bash
-sudo apt update
-sudo apt install -y dotnet-sdk-10.0 openssl libnss3-tools
+export DOTNET_ROOT="$HOME/.dotnet"
+export PATH="$DOTNET_ROOT:$DOTNET_ROOT/tools:$PATH"
+command -v dotnet
 dotnet --list-sdks
 dotnet --info
-dotnet8 --list-sdks
-dotnet --list-sdks | grep -E '^10\.'
 dotnet dev-certs https --trust
 dotnet dev-certs https --check --trust
 ```
 
-Os SDKs ficam isolados: use `dotnet8` para projetos que exigem .NET 8 e
-`dotnet` para .NET 10. Use `global.json` por repositorio para fixar a versao
-selecionada. O .NET 8 encerra suporte em 10/11/2026. A confianca do certificado
+Use sempre `dotnet` para ambas as versoes e mantenha `global.json` na raiz de
+cada repositorio com a versao completa do SDK. `rollForward: disable` exige a
+versao exata ja instalada; `global.json` nao baixa SDKs. Confira a selecao com
+`dotnet --version` dentro do projeto. Instalacoes antigas do sistema nao sao
+removidas automaticamente. O .NET 8 encerra suporte em 10/11/2026. A confianca do certificado
 e configurada para o usuario, nunca para `root`. A automacao tambem persiste em
 Bash e ZSH:
 

@@ -19,7 +19,7 @@
 - name: Validar fontes NuGet configuradas apos instalar .NET
   ansible.builtin.command:
     argv:
-      - dotnet
+      - "{{ ubuntu_desktop_home }}/.dotnet/dotnet"
       - nuget
       - list
       - source

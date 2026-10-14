@@ -1,0 +1,68 @@
+---
+- name: Validar versao e checksum do SDK .NET
+  ansible.builtin.assert:
+    that:
+      - host_tools_dotnet_sdk.version is match('^[0-9]+\.[0-9]+\.[0-9]+$')
+      - host_tools_dotnet_sdk.sha512 is match('^[a-f0-9]{128}$')
+
+- name: Consultar SDK .NET no home
+  ansible.builtin.stat:
+    path: "{{ host_tools_dotnet_install_dir }}/sdk/{{ host_tools_dotnet_sdk.version }}/dotnet.dll"
+  register: host_tools_dotnet_installation
+  become: false
+
+- name: Informar instalacao pendente do SDK .NET em check mode
+  ansible.builtin.debug:
+    msg: >-
+      SDK {{ host_tools_dotnet_sdk.version }} ausente em {{ host_tools_dotnet_install_dir }}.
+      Download verificado e extracao ocorrerao somente no modo real; nao foram simulados.
+  when:
+    - ansible_check_mode
+    - not host_tools_dotnet_installation.stat.exists
+
+- name: Instalar SDK .NET do usuario com download verificado
+  become: false
+  when:
+    - not ansible_check_mode
+    - not host_tools_dotnet_installation.stat.exists
+  block:
+    - name: Criar diretorio de artefatos .NET do usuario
+      ansible.builtin.file:
+        path: "{{ host_tools_dotnet_install_dir }}/artifacts"
+        state: directory
+        owner: "{{ ubuntu_desktop_user }}"
+        group: "{{ ubuntu_desktop_user }}"
+        mode: '0700'
+
+    - name: Criar temporario exclusivo para SDK .NET
+      ansible.builtin.tempfile:
+        state: directory
+        path: "{{ host_tools_dotnet_install_dir }}/artifacts"
+        prefix: sdk-
+      register: host_tools_dotnet_temporary
+
+    - name: Baixar SDK .NET oficial com SHA-512
+      ansible.builtin.get_url:
+        url: "https://builds.dotnet.microsoft.com/dotnet/Sdk/{{ host_tools_dotnet_sdk.version }}/{{ host_tools_dotnet_sdk_archive }}"
+        dest: "{{ host_tools_dotnet_temporary.path }}/sdk.tar.gz"
+        checksum: "sha512:{{ host_tools_dotnet_sdk.sha512 }}"
+        mode: '0600'
+      vars:
+        host_tools_dotnet_sdk_archive: "dotnet-sdk-{{ host_tools_dotnet_sdk.version }}-linux-x64.tar.gz"
+
+    - name: Extrair SDK .NET lado a lado no home
+      ansible.builtin.unarchive:
+        src: "{{ host_tools_dotnet_temporary.path }}/sdk.tar.gz"
+        dest: "{{ host_tools_dotnet_install_dir }}"
+        remote_src: true
+        owner: "{{ ubuntu_desktop_user }}"
+        group: "{{ ubuntu_desktop_user }}"
+        creates: "{{ host_tools_dotnet_install_dir }}/sdk/{{ host_tools_dotnet_sdk.version }}/dotnet.dll"
+  always:
+    - name: Remover somente temporario desta instalacao .NET
+      ansible.builtin.file:
+        path: "{{ host_tools_dotnet_temporary.path }}"
+        state: absent
+      when:
+        - host_tools_dotnet_temporary is defined
+        - host_tools_dotnet_temporary.path is defined
