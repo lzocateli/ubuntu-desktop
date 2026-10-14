@@ -2,13 +2,16 @@
 
 ## Sumario
 
-- [Escopo](#escopo)
-- [Cliente Nextcloud Desktop](#cliente-nextcloud-desktop)
-- [Aplicativos Flatpak](#aplicativos-flatpak)
-- [Ferramentas do host](#ferramentas-do-host)
-- [Terminal e shell](#terminal-e-shell)
-- [Dependencias do controller](#dependencias-do-controller)
-- [Limites da validacao](#limites-da-validacao)
+- [Aplicativos cobertos pelo Ansible](#aplicativos-cobertos-pelo-ansible)
+  - [Sumario](#sumario)
+  - [Escopo](#escopo)
+  - [Cliente Nextcloud Desktop](#cliente-nextcloud-desktop)
+  - [Aplicativos Flatpak](#aplicativos-flatpak)
+  - [Ferramentas do host](#ferramentas-do-host)
+    - [Atualizacoes do Visual Studio Code](#atualizacoes-do-visual-studio-code)
+  - [Terminal e shell](#terminal-e-shell)
+  - [Dependencias do controller](#dependencias-do-controller)
+  - [Limites da validacao](#limites-da-validacao)
 
 ## Escopo
 
@@ -105,7 +108,7 @@ defaults da role.
 | Claude Code CLI | Repositorio APT oficial Anthropic, canal `stable` e chave validada por fingerprint | `claude --version` |
 | 1Password Desktop | Repositorio oficial | `1password --version` |
 | 1Password CLI | Repositorio oficial | `op --version` |
-| Visual Studio Code | Repositorio Microsoft no host | `code --version` |
+| Visual Studio Code | Pacote `code` pelo repositorio Microsoft no host | `code --version`; atualizacao pelo APT |
 | .NET SDK 8 | Arquivo oficial Microsoft fixado por versao e SHA-512 em `~/.dotnet` | `~/.dotnet/dotnet --list-sdks` |
 | .NET SDK 10 | Arquivo oficial Microsoft fixado por versao e SHA-512 no mesmo `~/.dotnet` | `dotnet --version` no projeto com `global.json` |
 | Certificado HTTPS .NET | `openssl`, `libnss3-tools` e trust por usuario | `dotnet dev-certs https --check --trust` |
@@ -132,6 +135,33 @@ Atualize versao e hash juntos nos defaults ou na lista `host_tools_dotnet_sdks`.
 Instalacoes antigas do sistema nao sao removidas automaticamente. O .NET 8
 encerra suporte em 10/11/2026; mantenha-o somente enquanto houver projetos que
 precisem dele.
+
+### Atualizacoes do Visual Studio Code
+
+O pacote `code` vem do repositorio APT oficial da Microsoft configurado pela
+role `host_tools`. As atualizacoes publicadas nesse repositorio chegam pelo
+APT; o playbook instala o pacote e configura a origem, mas **nao habilita por
+si so atualizacao automatica**. Atualize manualmente com:
+
+```bash
+sudo apt update
+sudo apt install --only-upgrade code
+```
+
+O Atualizador de Programas do Ubuntu tambem pode oferecer atualizacoes desse
+repositorio junto das demais atualizacoes APT. Para atualizacao automatica sem
+interacao, configure `unattended-upgrades` e inclua explicitamente a origem do
+repositorio do VS Code, usando os campos `Origin`/`Label` realmente publicados
+no `InRelease` e exibidos por `apt-cache policy code`. Nao presuma que a regra
+padrao de atualizacoes de seguranca inclua repositorios de terceiros e nao
+habilite todo o repositorio Microsoft de producao apenas para atualizar o VS
+Code; isso pode autorizar atualizacao automatica de outros pacotes Microsoft.
+
+A configuracao de `unattended-upgrades`, a origem APT permitida e a politica de
+reinicializacao sao deliberadamente separadas da instalacao atual do VS Code.
+Antes de ativa-las, revise quais pacotes serao autorizados e teste a simulacao
+do `unattended-upgrades` para confirmar que apenas as origens desejadas estao
+incluidas.
 
 O repositorio Microsoft APT configurado para Ubuntu 26.04 nao publica o pacote
 PowerShell. A role instala o tarball oficial Linux x64 do PowerShell 7.6.6 com

@@ -539,6 +539,16 @@ code --version
 O pacote Flatpak `com.visualstudio.code` nao e usado por padrao porque seu sandbox
 limita integracao com as ferramentas do host.
 
+O pacote `code` recebe atualizacoes pelo APT, mas o playbook nao ativa
+atualizacao automatica. Para atualizar manualmente, execute `sudo apt update`
+e `sudo apt install --only-upgrade code`. Atualizacao automatica pode ser
+configurada com `unattended-upgrades`, permitindo explicitamente apenas a
+origem/label do repositorio VS Code verificada por `apt-cache policy code` e
+seus metadados `InRelease`. Nao suponha que a regra padrao de seguranca inclua
+repositorios de terceiros nem permita toda a origem Microsoft de producao:
+isso poderia atualizar outros pacotes dessa origem. Essa configuracao e
+separada e nao e aplicada pela automacao atual.
+
 ## Validacao consolidada
 
 Execute sem expor tokens ou dados de inventario:
