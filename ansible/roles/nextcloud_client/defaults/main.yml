@@ -1,4 +1,11 @@
+---
 nextcloud_client_server_url: https://meudrive.lzoca/
 nextcloud_client_mount_point: /mnt/kingston
 nextcloud_client_sync_directory: "{{ nextcloud_client_mount_point }}/Nextcloud"
 nextcloud_client_package: nextcloud-desktop
+nextcloud_client_install_libreoffice: true
+nextcloud_client_libreoffice_packages:
+  - libreoffice-writer
+  - libreoffice-calc
+  - libreoffice-gtk3
+  - libreoffice-l10n-pt-br

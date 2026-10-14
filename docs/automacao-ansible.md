@@ -329,6 +329,31 @@ amd64 e prepara `/mnt/kingston/Nextcloud` para sincronizacao com
 `/mnt/kingston` antes de executar a role. A automacao nao formata, monta nem
 configura persistencia do disco.
 
+A role tambem instala LibreOffice Writer (DOCX), Calc (XLSX), integracao GTK3
+com GNOME e interface pt-BR pelos repositorios APT do Ubuntu. As versoes seguem
+os pacotes da distribuicao; nao ha download de instalador externo. Edicao grafica
+exige sessao GNOME. A instalacao requer privilegios `become` e acesso aos
+repositorios; nao altera associacoes de arquivos nem documentos existentes.
+
+O [cliente Nextcloud Desktop apenas sincroniza arquivos](https://docs.nextcloud.com/server/latest/user_manual/en/files/desktop_mobile_sync.html).
+O [LibreOffice abre e salva DOCX e XLSX](https://help.libreoffice.org/latest/en-US/text/shared/guide/ms_user.html).
+Abra arquivos da pasta sincronizada no Writer ou Calc; apos salvar e com o
+cliente conectado, o Nextcloud sincroniza as alteracoes. Preserve o formato
+DOCX/XLSX ao salvar se precisar compartilhar com usuarios do Microsoft Office.
+Macros VBA e layouts complexos podem nao ser compativeis: trabalhe numa copia
+e confira o resultado antes de sobrescrever documentos importantes.
+
+A [edicao colaborativa pelo navegador](https://docs.nextcloud.com/server/latest/admin_manual/office/index.html)
+e diferente: requer uma integracao Office e seu servico no servidor Nextcloud.
+Instalar LibreOffice no desktop nao habilita essa funcionalidade.
+
+Defina `nextcloud_client_install_libreoffice: false` para nao instalar nem
+validar os editores. Isso nao desinstala pacotes existentes. A lista
+`nextcloud_client_libreoffice_packages` pode ser sobrescrita no inventario.
+Para recuperacao, use o historico/versoes do Nextcloud ou o backup do documento;
+a role nao converte arquivos nem gerencia backups. Nao remova a pasta
+sincronizada para desinstalar o editor.
+
 Simule e aplique somente a role Nextcloud em um alvo autorizado:
 
 ```bash
@@ -670,7 +695,7 @@ Dados removidos nao possuem rollback automatico.
 | `preflight` | Validacoes do alvo |
 | `base` | Pacotes Ubuntu e terminal |
 | `flatpak` | Flathub e aplicativos |
-| `nextcloud` | Cliente Nextcloud Desktop e pasta de sincronizacao |
+| `nextcloud` | Cliente Nextcloud Desktop, pasta de sincronizacao e LibreOffice Writer/Calc |
 | `host_tools` | Podman rootless, SDKs e CLIs |
 | `terminal` | Shell, Git, chaves SSH, fontes NuGet, uv, prompt e fonte |
 | `zsh` | Tema Oh My Posh e configuracao de historico do ZSH; requer ferramentas instaladas |

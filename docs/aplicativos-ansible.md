@@ -27,6 +27,14 @@ configuracoes pessoais, shell, fontes e `~/.profile` pertencem a `lzocateli`.
 | --- | --- | --- | --- | --- |
 | Nextcloud Desktop | `nextcloud-desktop` (APT) | `https://meudrive.lzoca/` | `/mnt/kingston/Nextcloud` | Instalado |
 
+Por padrao, a mesma role instala `libreoffice-writer`, `libreoffice-calc`,
+`libreoffice-gtk3` e `libreoffice-l10n-pt-br` via APT para editar DOCX e XLSX
+localmente, com integracao GNOME e interface em portugues. Desabilite com
+`nextcloud_client_install_libreoffice: false` (nao remove instalacoes existentes).
+Writer e Calc editam os arquivos; Nextcloud Desktop sincroniza as alteracoes.
+Isso nao configura edicao colaborativa no navegador nem servicos Office no
+servidor. Confira formatos complexos e macros antes de sobrescrever originais.
+
 A role exige que `/mnt/kingston` ja seja um ponto de montagem e cria a pasta de
 sincronizacao com proprietario `lzocateli`, grupo primario do usuario e modo
 `0750`. Ela nao formata, monta nem altera `/etc/fstab`, e falha se a pasta

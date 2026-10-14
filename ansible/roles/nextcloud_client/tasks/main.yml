@@ -46,9 +46,13 @@
   become: true
   when: not ansible_check_mode
 
-- name: Instalar cliente Nextcloud Desktop
+- name: Instalar cliente Nextcloud Desktop e editores locais
   ansible.builtin.apt:
-    name: "{{ nextcloud_client_package }}"
+    name: >-
+      {{
+        [nextcloud_client_package]
+        + (nextcloud_client_libreoffice_packages if nextcloud_client_install_libreoffice | bool else [])
+      }}
     state: present
   become: true
 
@@ -68,3 +72,16 @@
   changed_when: false
   failed_when: nextcloud_client_version.rc != 0
   when: not ansible_check_mode
+
+- name: Validar pacotes LibreOffice para edicao local
+  ansible.builtin.command:
+    argv: [dpkg-query, -W, '-f=${Status}', "{{ item }}"]
+  loop: "{{ nextcloud_client_libreoffice_packages }}"
+  register: nextcloud_client_libreoffice_validation
+  changed_when: false
+  failed_when: >-
+    nextcloud_client_libreoffice_validation.rc != 0 or
+    'install ok installed' not in nextcloud_client_libreoffice_validation.stdout
+  when:
+    - nextcloud_client_install_libreoffice | bool
+    - not ansible_check_mode

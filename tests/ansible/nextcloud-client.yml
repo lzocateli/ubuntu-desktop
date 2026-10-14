@@ -15,3 +15,28 @@
           - nextcloud_client_sync_directory == '/mnt/kingston/Nextcloud'
           - nextcloud_client_sync_directory | dirname == nextcloud_client_mount_point
           - nextcloud_client_package == 'nextcloud-desktop'
+          - nextcloud_client_install_libreoffice | bool
+          - "'libreoffice-writer' in nextcloud_client_libreoffice_packages"
+          - "'libreoffice-calc' in nextcloud_client_libreoffice_packages"
+          - "'libreoffice-gtk3' in nextcloud_client_libreoffice_packages"
+          - "'libreoffice-l10n-pt-br' in nextcloud_client_libreoffice_packages"
+
+    - name: Carregar tasks para conferir contrato de instalacao e simulacao
+      ansible.builtin.set_fact:
+        nextcloud_client_test_tasks: >-
+          {{ lookup('file', '../../ansible/roles/nextcloud_client/tasks/main.yml') | from_yaml }}
+
+    - name: Conferir instalacao declarativa dos editores sem forcar modo real
+      ansible.builtin.assert:
+        that:
+          - nextcloud_client_test_install['ansible.builtin.apt'].state == 'present'
+          - "'nextcloud_client_libreoffice_packages' in nextcloud_client_test_install['ansible.builtin.apt'].name"
+          - "'nextcloud_client_install_libreoffice' in nextcloud_client_test_install['ansible.builtin.apt'].name"
+          - "'check_mode' not in nextcloud_client_test_install"
+      vars:
+        nextcloud_client_test_install: >-
+          {{
+            nextcloud_client_test_tasks
+            | selectattr('name', 'equalto', 'Instalar cliente Nextcloud Desktop e editores locais')
+            | first
+          }}
