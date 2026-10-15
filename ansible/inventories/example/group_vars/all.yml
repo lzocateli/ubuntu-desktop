@@ -33,6 +33,7 @@ terminal_ssh_hosts:
   - {alias: interserver, hostname: storage3600.is.cc, user: st56165, identity_file: id_ed25519_interserver}
   - {alias: truenas, hostname: 172.16.100.20, user: truenas_admin, identity_file: id_ed25519_proxmox}
   - {alias: truenas-root, hostname: 172.16.100.20, user: root, identity_file: id_ed25519_proxmox}
+  - {alias: github.com, hostname: github.com, user: git, identity_file: id_ed25519_github_pessoal}
 terminal_nuget_test_source: https://int.nugettest.org/
 
 snap_migration_remove_snap: false
