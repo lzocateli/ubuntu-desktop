@@ -13,27 +13,28 @@ terminal_onepassword_env_vault: ''
 terminal_onepassword_env_document: ''
 terminal_ssh_op_vault: Automation
 terminal_ssh_key_items:
-  - interserver-st56165
-  - cat-devops-zocatel
-  - proxmox
-  - hostinger-root
-  - hostinger-brazildevops
+  - id_ed25519_proxmox
+  - id_ed25519_pve_lzocateli
+  - id_ed25519_hostinger_root
+  - id_ed25519_hostinger_brazildevops
+  - id_ed25519_interserver_st56165
+  - id_ed25519_github_lzocateli
 terminal_ssh_hosts:
   - {alias: pve01, hostname: 172.16.100.13, user: root, identity_file: id_ed25519_proxmox}
   - {alias: pve02, hostname: 172.16.100.12, user: root, identity_file: id_ed25519_proxmox}
   - {alias: pve03, hostname: 172.16.100.14, user: root, identity_file: id_ed25519_proxmox}
   - {alias: pve04, hostname: 172.16.100.11, user: root, identity_file: id_ed25519_proxmox}
   - {alias: pve05, hostname: 172.16.100.10, user: root, identity_file: id_ed25519_proxmox}
-  - {alias: vm-nginx, hostname: 172.16.10.30, user: lzocateli, identity_file: id_ed25519_servers}
-  - {alias: vm-postgres, hostname: 172.16.10.40, user: lzocateli, identity_file: id_ed25519_servers}
-  - {alias: vm-monitor, hostname: 172.16.10.50, user: lzocateli, identity_file: id_ed25519_servers}
+  - {alias: vm-nginx, hostname: 172.16.10.30, user: lzocateli, identity_file: id_ed25519_pve_lzocateli}
+  - {alias: vm-postgres, hostname: 172.16.10.40, user: lzocateli, identity_file: id_ed25519_pve_lzocateli}
+  - {alias: vm-monitor, hostname: 172.16.10.50, user: lzocateli, identity_file: id_ed25519_pve_lzocateli}
   - {alias: unifi, hostname: 172.16.100.1, user: root, identity_file: id_ed25519_proxmox}
-  - {alias: hostinger-root, hostname: 187.77.231.228, user: root, identity_file: id_ed25519}
-  - {alias: hostinger-vps, hostname: 187.77.231.228, user: brazildevops, identity_file: id_ed25519_hostinger}
-  - {alias: interserver, hostname: storage3600.is.cc, user: st56165, identity_file: id_ed25519_interserver}
+  - {alias: hostinger-root, hostname: 187.77.231.228, user: root, identity_file: id_ed25519_hostinger_root}
+  - {alias: hostinger-vps, hostname: 187.77.231.228, user: brazildevops, identity_file: id_ed25519_hostinger_brazildevops}
+  - {alias: interserver, hostname: storage3600.is.cc, user: st56165, identity_file: id_ed25519_interserver_st56165}
   - {alias: truenas, hostname: 172.16.100.20, user: truenas_admin, identity_file: id_ed25519_proxmox}
   - {alias: truenas-root, hostname: 172.16.100.20, user: root, identity_file: id_ed25519_proxmox}
-  - {alias: github.com, hostname: github.com, user: git, identity_file: id_ed25519_github_pessoal}
+  - {alias: github.com, hostname: github.com, user: git, identity_file: id_ed25519_github_lzocateli}
 terminal_nuget_test_source: https://int.nugettest.org/
 
 snap_migration_remove_snap: false

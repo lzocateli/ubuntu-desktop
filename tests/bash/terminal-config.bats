@@ -27,14 +27,19 @@ import json
 import subprocess
 import sys
 
-hosts = json.loads(subprocess.check_output([
+inventory = json.loads(subprocess.check_output([
     "ansible-inventory", "-i", sys.argv[2], "--host",
     "ubuntu-workstation.example.invalid",
-], text=True))["terminal_ssh_hosts"]
+], text=True))
+hosts = inventory["terminal_ssh_hosts"]
+assert set(inventory["terminal_ssh_key_items"]) == {
+  host["identity_file"] for host in hosts
+}
 assert {host["alias"] for host in hosts} == {
   "pve01", "pve02", "pve03", "pve04", "pve05",
   "vm-nginx", "vm-postgres", "vm-monitor", "unifi",
   "hostinger-root", "hostinger-vps", "interserver", "truenas", "truenas-root",
+  "github.com",
 }
 
 for host in hosts:
@@ -45,6 +50,7 @@ for host in hosts:
     assert f"user {host['user']}" in output
     assert f"identityfile /home/lzocateli/.ssh/{host['identity_file']}" in output
     assert "port 22" in output
+    assert "identitiesonly yes" in output
     assert "stricthostkeychecking no" not in output
 PY
 }

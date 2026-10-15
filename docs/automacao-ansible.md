@@ -763,12 +763,65 @@ token nao deve ser salvo no inventario nem passado como argumento de linha de
 comando. As consultas ao 1Password e a instalacao das chaves sao omitidas em
 check mode.
 
-Os itens padrao sao `proxmox`, `interserver-st56165`, `cat-devops-zocatel`,
-`hostinger-root` e `hostinger-brazildevops`. As chaves sao gravadas em `~/.ssh/`
+Os itens padrao sao `id_ed25519_proxmox`, `id_ed25519_pve_lzocateli`, `id_ed25519_hostinger_root`,
+`id_ed25519_hostinger_brazildevops`, `id_ed25519_interserver_st56165` e `id_ed25519_github_lzocateli`.
+O titulo de cada item deve ser exatamente o nome do arquivo indicado por
+`IdentityFile`, sem o caminho. As chaves sao gravadas em `~/.ssh/`
 com modo `0600`, dentro de um diretorio `0700`; respostas e diffs das tarefas
 que manipulam material privado sao ocultados. O destino padrao do config e
-`~/.ssh/config`; o arquivo mantido no Nextcloud serve somente como modelo. O
-bloco gerenciado preserva outras entradas e configura:
+`~/.ssh/config`; o arquivo mantido no Nextcloud serve somente como modelo.
+Na conciliacao, o config local e a fonte da verdade: replique seus aliases,
+destinos, usuarios e nomes de identidade em `terminal_ssh_hosts` dos inventarios
+de exemplo e privado, e mantenha `terminal_ssh_key_items` alinhado a essas
+identidades. A execucao normal continua gerando o bloco a partir do inventario;
+ela nao importa alteracoes locais automaticamente. Nao execute a instalacao
+real das chaves antes de conciliar os titulos no cofre.
+
+Conciliacao de 15/10/2026: os fingerprints publicos foram comparados aos
+derivados das chaves privadas locais, sem revelar material privado. O CLI
+1Password 2.41.0 recusou `op item edit` com
+`SSH Key item editing in the CLI is not yet supported`; nenhum titulo foi
+alterado. Renomeie os itens existentes pelo aplicativo 1Password, preservando
+IDs e chaves, antes de executar o Ansible:
+
+| Titulo atual no Automation | Novo titulo igual ao arquivo local |
+| --- | --- |
+| `proxmox` | `id_ed25519_proxmox` |
+| `pve-brazildevops` | `id_ed25519_pve_lzocateli` |
+| `hostinger-root` | `id_ed25519_hostinger_root` |
+| `hostinger-brazildevops` | `id_ed25519_hostinger_brazildevops` |
+| `interserver-st56165` | `id_ed25519_interserver_st56165` |
+| `github cat` | `id_ed25519_github_lzocateli` |
+
+`id_ed25519_github_lzocateli` ja esta correto. `id_ed25519_github_lzocateli` tem
+correspondencia local, mas nao e usado pelo config e nao entra no download
+gerenciado. `proxmox`, `pve-brazildevops` e `hostinger-brazildevops` contem a
+mesma chave publica, assim como os tres arquivos locais correspondentes;
+esta conciliacao nao faz rotacao nem deduplicacao de chaves. Os itens
+`cat-devops-zocatel` e `Github - brazildevops` nao correspondem a nenhuma
+chave privada local e devem ser preservados, sem renomear por suposicao.
+Arquivos locais sem referencia no config tambem nao sao removidos.
+Para recuperar uma renomeacao incorreta, restaure o titulo anterior no aplicativo;
+nao exclua nem recrie o item. A tentativa foi registrada em
+`artifacts/logs/ssh-reconcile-20261015T155027Z-p5MYep.log`, sem segredos.
+
+Validacao local: os 15 aliases e as seis identidades dos dois inventarios
+conferem com a expansao do config via `ssh -G`, sem conexoes de rede. Os dois
+testes de `tests/bash/terminal-config.bats`, yamllint, ShellCheck e syntax-check
+com `ANSIBLE_CONFIG=ansible/ansible.cfg` passaram. O check mode das tarefas SSH
+em fixture descartavel terminou sem falhas, sem consultar o cofre e sem gravar
+arquivos SSH. Aplicacao real e idempotencia do download permanecem pendentes
+das renomeacoes no aplicativo; o download real nao foi executado.
+
+Na etapa seguinte de 15/10/2026, os arquivos locais foram renomeados para
+`id_ed25519_pve_lzocateli` (incluindo `.pub`), `id_ed25519_hostinger_root` e
+`id_ed25519_github_lzocateli`, preservando conteudo e permissoes. O config
+local e os dois inventarios foram ajustados; o alias `github.com` continua
+usando `id_ed25519_github_lzocateli`. Auditoria local em
+`artifacts/logs/ssh-rename-20261015T160057Z-MIbz57.log`. A tabela de novos
+titulos acima ja reflete esses nomes; a renomeacao no cofre continua manual.
+
+O bloco gerenciado preserva outras entradas e configura:
 
 A tag `ssh_permissions` pode ser usada isoladamente pelo wrapper para corrigir
 somente permissoes: diretorio `.ssh` em `0700`, arquivos privados e auxiliares
@@ -777,19 +830,19 @@ nem altera o conteudo, proprietario ou grupo dos arquivos.
 
 | Alias | Destino | Usuario | Chave |
 | --- | --- | --- | --- |
-| `hostinger-root` | `187.77.231.228` | `root` | `hostinger-root` |
-| `pve01` | `172.16.100.13` | `root` | `proxmox` |
-| `pve02` | `172.16.100.12` | `root` | `proxmox` |
-| `pve03` | `172.16.100.14` | `root` | `proxmox` |
-| `pve04` | `172.16.100.11` | `root` | `proxmox` |
-| `pve05` | `172.16.100.10` | `root` | `proxmox` |
-| `vm-nginx`, `vm-postgres`, `vm-monitor` | `172.16.10.30`, `.40`, `.50` | `lzocateli` | `cat-devops-zocatel` |
-| `unifi` | `172.16.100.1` | `root` | `proxmox` |
-| `truenas` | `172.16.100.20` | `truenas_admin` | `proxmox` |
-| `truenas-root` | `172.16.100.20` | `root` | `proxmox` |
-| `hostinger-root` | `187.77.231.228` | `root` | `hostinger-root` |
-| `hostinger-vps` | `187.77.231.228` | `brazildevops` | `hostinger-brazildevops` |
-| `interserver` | `storage3600.is.cc` | `st56165` | `interserver-st56165` |
+| `pve01` | `172.16.100.13` | `root` | `id_ed25519_proxmox` |
+| `pve02` | `172.16.100.12` | `root` | `id_ed25519_proxmox` |
+| `pve03` | `172.16.100.14` | `root` | `id_ed25519_proxmox` |
+| `pve04` | `172.16.100.11` | `root` | `id_ed25519_proxmox` |
+| `pve05` | `172.16.100.10` | `root` | `id_ed25519_proxmox` |
+| `vm-nginx`, `vm-postgres`, `vm-monitor` | `172.16.10.30`, `.40`, `.50` | `lzocateli` | `id_ed25519_pve_lzocateli` |
+| `unifi` | `172.16.100.1` | `root` | `id_ed25519_proxmox` |
+| `truenas` | `172.16.100.20` | `truenas_admin` | `id_ed25519_proxmox` |
+| `truenas-root` | `172.16.100.20` | `root` | `id_ed25519_proxmox` |
+| `hostinger-root` | `187.77.231.228` | `root` | `id_ed25519_hostinger_root` |
+| `hostinger-vps` | `187.77.231.228` | `brazildevops` | `id_ed25519_hostinger_brazildevops` |
+| `interserver` | `storage3600.is.cc` | `st56165` | `id_ed25519_interserver_st56165` |
+| `github.com` | `github.com` | `git` | `id_ed25519_github_lzocateli` |
 
 As conexoes usam a porta 22 e nao desabilitam a verificacao de host key. A
 validacao real usa `ssh -G` para confirmar a expansao de host, usuario,
