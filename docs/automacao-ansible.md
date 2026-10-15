@@ -764,23 +764,36 @@ comando. As consultas ao 1Password e a instalacao das chaves sao omitidas em
 check mode.
 
 Os itens padrao sao `proxmox`, `interserver-st56165`, `cat-devops-zocatel`,
-`pve-brazildevops`, `hostinger-root` e `hostinger-brazildevops`. As chaves sao
-gravadas em `~/.ssh/` com modo `0600`, dentro de um diretorio `0700`; respostas
-e diffs das tarefas que manipulam material privado sao ocultados. O bloco
-gerenciado em `~/.ssh/config` preserva outras entradas e configura:
+`hostinger-root` e `hostinger-brazildevops`. As chaves sao gravadas em `~/.ssh/`
+com modo `0600`, dentro de um diretorio `0700`; respostas e diffs das tarefas
+que manipulam material privado sao ocultados. O destino padrao do config e
+`~/.ssh/config`; o arquivo mantido no Nextcloud serve somente como modelo. O
+bloco gerenciado preserva outras entradas e configura:
+
+A tag `ssh_permissions` pode ser usada isoladamente pelo wrapper para corrigir
+somente permissoes: diretorio `.ssh` em `0700`, arquivos privados e auxiliares
+em `0600`, e arquivos `.pub` em `0644`. Essa operacao nao consulta o 1Password
+nem altera o conteudo, proprietario ou grupo dos arquivos.
 
 | Alias | Destino | Usuario | Chave |
 | --- | --- | --- | --- |
 | `hostinger-root` | `187.77.231.228` | `root` | `hostinger-root` |
-| `hostinger-brazildevops` | `187.77.231.228` | `brazildevops` | `hostinger-brazildevops` |
-| `interserver-st56165` | `216.158.237.158` | `st56165` | `interserver-st56165` |
-| `proxmox01`-`proxmox06` | `172.16.100.10`-`172.16.100.15` | `root` | `proxmox` |
-| `pve01`-`pve05` | nomes DNS `pve01`-`pve05` | `root` | `pve-brazildevops` |
+| `pve01` | `172.16.100.13` | `root` | `proxmox` |
+| `pve02` | `172.16.100.12` | `root` | `proxmox` |
+| `pve03` | `172.16.100.14` | `root` | `proxmox` |
+| `pve04` | `172.16.100.11` | `root` | `proxmox` |
+| `pve05` | `172.16.100.10` | `root` | `proxmox` |
+| `vm-nginx`, `vm-postgres`, `vm-monitor` | `172.16.10.30`, `.40`, `.50` | `lzocateli` | `cat-devops-zocatel` |
+| `unifi` | `172.16.100.1` | `root` | `proxmox` |
+| `truenas` | `172.16.100.20` | `truenas_admin` | `proxmox` |
+| `truenas-root` | `172.16.100.20` | `root` | `proxmox` |
+| `hostinger-root` | `187.77.231.228` | `root` | `hostinger-root` |
+| `hostinger-vps` | `187.77.231.228` | `brazildevops` | `hostinger-brazildevops` |
+| `interserver` | `storage3600.is.cc` | `st56165` | `interserver-st56165` |
 
-A chave `cat-devops-zocatel` e instalada, mas nao recebe alias porque nao ha
-destino SSH associado a ela. As conexoes usam a porta 22 e nao desabilitam a
-verificacao de host key. A validacao real usa `ssh -G` para confirmar a
-expansao de host, usuario, identidade e porta sem abrir conexao de rede.
+As conexoes usam a porta 22 e nao desabilitam a verificacao de host key. A
+validacao real usa `ssh -G` para confirmar a expansao de host, usuario,
+identidade e porta sem abrir conexao de rede.
 
 Depois da instalacao do .NET, a role cria
 `~/.nuget/NuGet/NuGet.Config` com permissao `0600` e as fontes nuget.org

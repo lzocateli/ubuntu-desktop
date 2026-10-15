@@ -15,6 +15,7 @@ terminal_wireguard_profiles:
 terminal_ssh_op_vault: ''
 terminal_ssh_key_items: []
 terminal_ssh_hosts: []
+terminal_ssh_config_path: "{{ ubuntu_desktop_home }}/.ssh/config"
 terminal_nuget_test_source: https://int.nugettest.org/
 terminal_uv_version: 0.8.22
 terminal_oh_my_posh_version: 26.23.4

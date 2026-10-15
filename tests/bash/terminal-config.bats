@@ -31,6 +31,11 @@ hosts = json.loads(subprocess.check_output([
     "ansible-inventory", "-i", sys.argv[2], "--host",
     "ubuntu-workstation.example.invalid",
 ], text=True))["terminal_ssh_hosts"]
+assert {host["alias"] for host in hosts} == {
+  "pve01", "pve02", "pve03", "pve04", "pve05",
+  "vm-nginx", "vm-postgres", "vm-monitor", "unifi",
+  "hostinger-root", "hostinger-vps", "interserver", "truenas", "truenas-root",
+}
 
 for host in hosts:
     output = subprocess.check_output(

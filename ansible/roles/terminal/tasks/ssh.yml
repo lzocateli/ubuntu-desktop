@@ -90,6 +90,7 @@
     mode: '0700'
   when:
     - terminal_ssh_key_items | length > 0 or terminal_ssh_hosts | length > 0
+  tags: [ssh_config]
 
 - name: Instalar chaves privadas SSH
   ansible.builtin.copy:
@@ -109,7 +110,7 @@
 
 - name: Configurar aliases SSH gerenciados
   ansible.builtin.blockinfile:
-    path: "{{ ubuntu_desktop_home }}/.ssh/config"
+    path: "{{ terminal_ssh_config_path }}"
     create: true
     owner: "{{ ubuntu_desktop_user }}"
     group: "{{ ubuntu_desktop_user }}"
@@ -117,6 +118,7 @@
     marker: '# {mark} ANSIBLE UBUNTU DESKTOP SSH'
     block: "{{ lookup('ansible.builtin.template', 'ssh-config.j2') }}"
   diff: false
+  tags: [ssh_config]
   when: terminal_ssh_hosts | length > 0
 
 - name: Validar sintaxe e expansao dos aliases SSH
@@ -125,7 +127,7 @@
       - ssh
       - -G
       - -F
-      - "{{ ubuntu_desktop_home }}/.ssh/config"
+      - "{{ terminal_ssh_config_path }}"
       - "{{ item.alias }}"
   loop: "{{ terminal_ssh_hosts }}"
   loop_control:
@@ -139,6 +141,7 @@
     ('identityfile ' ~ ubuntu_desktop_home ~ '/.ssh/' ~ item.identity_file)
     not in terminal_ssh_config_validation.stdout_lines or
     ('port 22') not in terminal_ssh_config_validation.stdout_lines
+  tags: [ssh_config]
   when:
     - not ansible_check_mode
     - terminal_ssh_hosts | length > 0
@@ -151,3 +154,29 @@
   when:
     - ansible_check_mode
     - terminal_ssh_key_items | length > 0 or terminal_ssh_hosts | length > 0
+
+- name: Ajustar permissao do diretorio SSH
+  ansible.builtin.file:
+    path: "{{ ubuntu_desktop_home }}/.ssh"
+    state: directory
+    mode: '0700'
+  tags: [ssh_permissions]
+
+- name: Localizar arquivos SSH para ajustar permissoes
+  ansible.builtin.find:
+    paths: "{{ ubuntu_desktop_home }}/.ssh"
+    file_type: file
+    recurse: false
+    hidden: true
+  register: terminal_ssh_permission_files
+  tags: [ssh_permissions]
+
+- name: Ajustar permissoes dos arquivos SSH sem alterar conteudo
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: file
+    mode: "{{ '0644' if item.path.endswith('.pub') else '0600' }}"
+  loop: "{{ terminal_ssh_permission_files.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  tags: [ssh_permissions]

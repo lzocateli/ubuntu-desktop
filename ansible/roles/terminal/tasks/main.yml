@@ -23,6 +23,7 @@
 
 - name: Configurar chaves SSH do 1Password
   ansible.builtin.include_tasks: ssh.yml
+  tags: [ssh_config, ssh_permissions]
 
 - name: Configurar perfis WireGuard do 1Password
   ansible.builtin.include_tasks: wireguard.yml
