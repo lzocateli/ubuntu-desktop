@@ -88,6 +88,7 @@ Pastas sem implementacao permanecem ausentes. Veja o
 - [Referencia do Gitconfig gerenciado](docs/README_gitconfig.md)
 - [Git hooks e Gitleaks](docs/githooks.md)
 - [Plano de implementacao](docs/plan/plano-automacao-ubuntu-desktop.md)
+- [Plano de migracao do home para o Kingston](docs/plan/plano-migracao-home-kingston.md)
 
 ## Preparar o ambiente e clonar
 
