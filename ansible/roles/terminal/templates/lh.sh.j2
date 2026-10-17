@@ -1,0 +1,7 @@
+if alias lh >/dev/null 2>&1; then
+  unalias lh
+fi
+
+lh() {
+  command eza --long --all --group --color=auto -- "$@"
+}

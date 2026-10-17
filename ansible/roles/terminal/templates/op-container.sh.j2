@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -euo pipefail
+set +x
+
+main() {
+  local dry_run=false
+  while (($#)); do
+    case "$1" in
+      --help | -help | -h)
+        printf '%s\n' \
+          'op: CLI 1Password na imagem DevOps publica, via Podman rootless.' \
+          'Requer Bash 4.4+, Podman e imagem preparada pelo playbook.' \
+          'Uso: op [--dry-run|-dryrun] [--verbose] [--] COMANDO [ARGUMENTOS]' \
+          'Ajuda da CLI: op -- --help. Exemplo: op item get exemplo --vault pessoal' \
+          'Simulacao: op --dry-run item list; nao executa Podman nem consulta secrets.' \
+          'Saida: status da CLI; 2 para uso invalido; 127 sem Podman.'
+        return 0
+        ;;
+      --dry-run | -dryrun)
+        dry_run=true
+        shift
+        ;;
+      --verbose)
+        printf 'Executando op via Podman rootless; argumentos omitidos por seguranca.\n' >&2
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *) break ;;
+    esac
+  done
+  if [[ "$dry_run" == true ]]; then
+    printf 'Simulacao: executar op em {{ terminal_devops_image }}; argumentos omitidos por seguranca. Nenhuma consulta realizada.\n' >&2
+    return 0
+  fi
+  (($# > 0)) || {
+    printf 'Informe um comando; use op --help.\n' >&2
+    return 2
+  }
+  command -v podman >/dev/null 2>&1 || {
+    printf 'Podman indisponivel.\n' >&2
+    return 127
+  }
+  command podman image exists {{ terminal_devops_image | quote }} || {
+    printf 'Imagem ausente; execute o playbook para preparar a imagem publica.\n' >&2
+    return 1
+  }
+
+  local log_dir={{ (terminal_onepassword_home_dir ~ '/artifacts/logs') | quote }}
+  local timestamp run_id
+  timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" || return 1
+  run_id="$(date -u '+%Y%m%dT%H%M%S%N')-$$-$RANDOM" || return 1
+  (
+    umask 077
+    command mkdir -p "$log_dir" &&
+      printf '%s INFO run=%s modo=real container op\n' "$timestamp" "$run_id" \
+        >>"$log_dir/op-$run_id.log"
+  ) || return 1
+  printf '%s INFO run=%s modo=real container op\n' "$timestamp" "$run_id" >&2
+
+  local variable_name
+  local -a podman_args=(run --pull=never --rm)
+  [[ ! -t 0 ]] || podman_args+=(-i)
+  [[ ! -t 1 ]] || podman_args+=(-t)
+  podman_args+=(
+    --userns=keep-id
+    --user "$(id -u):$(id -g)"
+    --env HOME=/home/dev
+    --env OP_CONFIG_DIR=/home/dev/.config/op
+    --mount "type=bind,source={{ terminal_onepassword_home_dir }},target=/home/dev"
+    --mount "type=bind,source=$PWD,target=/workspace"
+    --workdir /workspace
+    --entrypoint op
+  )
+  while IFS= read -r variable_name; do
+    case "$variable_name" in
+      OP_SERVICE_ACCOUNT_TOKEN | OP_CONNECT_HOST | OP_CONNECT_TOKEN | OP_SESSION_*)
+        podman_args+=(--env "$variable_name")
+        ;;
+    esac
+  done < <(compgen -e)
+  command podman "${podman_args[@]}" {{ terminal_devops_image | quote }} "$@"
+}
+
+main "$@"

@@ -107,7 +107,7 @@ defaults da role.
 | GitHub CLI | Repositorio oficial | `gh --version` |
 | Claude Code CLI | Repositorio APT oficial Anthropic, canal `stable` e chave validada por fingerprint | `claude --version` |
 | 1Password Desktop | Repositorio oficial | `1password --version` |
-| 1Password CLI | Repositorio oficial | `op --version` |
+| 1Password CLI | Funcao e wrapper `~/.local/bin/op` usam imagem DevOps publica via Podman; sem pacote CLI nativo | `op --version` |
 | Visual Studio Code | Pacote `code` pelo repositorio Microsoft no host | `code --version`; atualizacao pelo APT |
 | .NET SDK 8 | Arquivo oficial Microsoft fixado por versao e SHA-512 em `~/.dotnet` | `~/.dotnet/dotnet --list-sdks` |
 | .NET SDK 10 | Arquivo oficial Microsoft fixado por versao e SHA-512 no mesmo `~/.dotnet` | `dotnet --version` no projeto com `global.json` |
@@ -179,19 +179,21 @@ a automacao nao autentica nem inicia sessoes do Claude Code.
 | --- | --- | --- |
 | uv | Versao fixa em `/opt/uv`, links em `/usr/local/bin` | `uv --version` |
 | uvx | Instalado junto com uv | `uvx --version` |
-| Oh My Posh | Binario em `/usr/local/bin` e tema Atomic do projeto em `~/.config/oh-my-posh/atomic.omp-VISION.json` | `oh-my-posh version`; inicializacao ZSH valida |
+| Oh My Posh | Binario em `/usr/local/bin` e tema customizado da referencia em `~/.config/oh-my-posh/atomic.omp.json` | `oh-my-posh version`; inicializacao ZSH valida |
 | Oh My Zsh | Clone fixado por variavel e plugin Git; historico persistente compartilhado com 50.000 linhas | Arquivo principal e opcoes de historico validados; `~/.zsh_history` modo `0600` |
-| Git do usuario | VS Code, fluxo de branches, diff/merge, rebase e `rerere` | Valores essenciais via `git config --file` |
+| Git do usuario | Role independente `git_config`: template, backup, identidade preservada e helper Azure DevOps opt-in | Valores essenciais via `git config --file`; testes isolados de PAT e idempotencia |
 | MesloLGM Nerd Font | Fonte no perfil do usuario e atualização do cache | Familia presente em `fc-list` |
 | Ambiente 1Password | Ansible baixa o `.env` e grava exports em `~/.profile` | Sintaxe do profile e testes com stub |
-| Chaves SSH | `op` no controller le os itens do vault e a role grava `~/.ssh/config` e as chaves com permissoes restritas | `ssh -G` valida host, usuario, identidade e porta |
+| Chaves SSH | `op` em container no alvo le o vault e a role grava config e chaves com permissoes restritas | `ssh -G` valida host, usuario, identidade e porta |
 | Fontes NuGet | `~/.nuget/NuGet/NuGet.Config` define nuget.org e nugettest depois da instalacao do .NET | `dotnet nuget list source` |
-| Node, npm e npx | Funcoes que executam na imagem `docker.io/lzocateli/devops:cpu-ubuntu24.04` via Podman rootless | Funcoes carregadas em Bash e ZSH |
+| Node, npm, npx e ng | Funcoes na imagem publica `docker.io/lzocateli/devops:cpu-v1`; Angular persistente via npm publico | Funcoes carregadas em Bash e ZSH |
+| lh e lhr | eza com cores automaticas e busca recursiva por padroes | Testes isolados em Bash e ZSH |
 | Copilot CLI | Binario Linux x64 oficial fixado e verificado por SHA-256 | `copilot --version` no host |
 
 O ambiente 1Password e opt-in e exige `terminal_onepassword_env_enabled: true`,
 vault e documento. Consulte o [guia operacional](automacao-ansible.md#ambiente-linux-pelo-1password).
-As chaves SSH exigem `op` e `OP_SERVICE_ACCOUNT_TOKEN` no controller; veja
+As chaves SSH usam `op` preparado no alvo e `OP_SERVICE_ACCOUNT_TOKEN` fornecido
+pelo ambiente do controller; veja
 [chaves SSH e NuGet](automacao-ansible.md#chaves-ssh-e-nuget) para o mapeamento
 dos itens, aliases e limites do check mode.
 Node e npm nao sao instalados no host. Seus wrappers usam um home isolado e nao

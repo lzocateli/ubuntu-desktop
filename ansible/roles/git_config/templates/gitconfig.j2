@@ -1,7 +1,13 @@
-# Gerenciado pelo Ansible. Altere as variaveis da role terminal.
+# Gerenciado pelo Ansible. Altere as variaveis da role git_config.
+{% if git_config_effective_user_name | length > 0 or git_config_effective_user_email | length > 0 %}
 [user]
-	name = {{ terminal_git_user_name | to_json }}
-	email = {{ terminal_git_user_email | to_json }}
+{% if git_config_effective_user_name | length > 0 %}
+	name = {{ git_config_effective_user_name | to_json }}
+{% endif %}
+{% if git_config_effective_user_email | length > 0 %}
+	email = {{ git_config_effective_user_email | to_json }}
+{% endif %}
+{% endif %}
 [core]
 	editor = code --wait
 	autocrlf = input
@@ -56,6 +62,11 @@
 [column]
 	ui = auto
 [help]
-	autocorrect = prompt
+	autocorrect = 0
 [credential]
 	useHttpPath = true
+{% if git_config_azure_devops_pat_enabled | bool %}
+[credential "https://dev.azure.com/{{ git_config_azure_devops_organization }}"]
+	helper =
+	helper = {{ ('!' ~ ((ubuntu_desktop_home ~ '/.local/lib/ubuntu-desktop/git-credential-azure-devops.sh') | quote) ~ ' --organization ' ~ (git_config_azure_devops_organization | quote) ~ ' --username ' ~ (git_config_azure_devops_username | quote)) | to_json }}
+{% endif %}

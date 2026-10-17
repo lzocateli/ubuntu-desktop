@@ -1,0 +1,25 @@
+if alias lhr >/dev/null 2>&1; then
+  unalias lhr
+fi
+
+_ubuntu_desktop_lhr() {
+  local pattern
+  local -a find_args=(-false)
+
+  for pattern in "$@"; do
+    find_args+=(-o -name "$pattern")
+  done
+  if (($# == 0)); then
+    find_args=(-name '*')
+  fi
+
+  command find . -type f '(' "${find_args[@]}" ')' -exec eza --long --all --group --color=auto -- '{}' +
+}
+
+lhr() {
+  _ubuntu_desktop_lhr "$@"
+}
+
+if [ -n "${ZSH_VERSION:-}" ]; then
+  alias lhr='noglob lhr'
+fi

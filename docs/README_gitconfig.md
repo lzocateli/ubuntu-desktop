@@ -20,12 +20,18 @@
 
 ## Objetivo
 
-Explicar cada parametro do `.gitconfig` criado pela role Ansible `terminal` no
+Explicar cada parametro do `.gitconfig` criado pela role Ansible `git_config` no
 Ubuntu Desktop 26.04 LTS. O estado foi definido para o usuario `lzocateli`, com
 line endings Linux, operacoes explicitas e integracao com Visual Studio Code.
 
 O template de origem e
-[`ansible/roles/terminal/templates/gitconfig.j2`](../ansible/roles/terminal/templates/gitconfig.j2).
+[`ansible/roles/git_config/templates/gitconfig.j2`](../ansible/roles/git_config/templates/gitconfig.j2).
+
+A estrutura segue a referencia: defaults, tasks, template e arquivo do
+credential helper em uma role independente. O controller requer Ansible
+conforme o [guia operacional](automacao-ansible.md); no alvo, Git e Bash 4.4+.
+Nao depende de rede ou sessao grafica para configurar o Git. VS Code so e
+necessario ao usar os comandos de editor, diff ou merge.
 
 ## Arquivo e propriedade
 
@@ -41,11 +47,18 @@ variaveis do inventario ou no template.
 
 | Parametro | Valor | Significado |
 | --- | --- | --- |
-| `user.name` | `terminal_git_user_name` | Nome gravado como autor e committer dos novos commits. |
-| `user.email` | `terminal_git_user_email` | E-mail gravado como autor e committer dos novos commits. |
+| `user.name` | `git_config_user_name` | Nome gravado como autor e committer dos novos commits. |
+| `user.email` | `git_config_user_email` | E-mail gravado como autor e committer dos novos commits. |
 
 O filtro Jinja `to_json` gera uma string corretamente escapada no arquivo. A
 identidade nao autentica o usuario no servidor Git e nao deve conter tokens.
+
+Por compatibilidade, os defaults usam `terminal_git_user_name` e
+`terminal_git_user_email` quando essas variaveis legadas existem no inventario.
+Os nomes novos tem precedencia. Se nome e email efetivos estiverem vazios,
+a role preserva a identidade do `.gitconfig` atual. Configure ambos juntos;
+um perfil novo pode ficar sem identidade ate ela ser informada explicitamente.
+`git_config_group` assume o grupo com o mesmo nome de `ubuntu_desktop_user`.
 
 ## Comportamento principal
 
@@ -136,7 +149,7 @@ antes de concluir o merge.
 | `branch.sort` | `-committerdate` | Lista primeiro as branches com commits mais recentes. |
 | `tag.sort` | `version:refname` | Ordena tags como versoes, por exemplo `v2.9` antes de `v2.10`. |
 | `column.ui` | `auto` | Usa colunas automaticamente quando o terminal e a saida permitem. |
-| `help.autocorrect` | `prompt` | Para comandos semelhantes, pede confirmacao antes de executar a correcao sugerida. |
+| `help.autocorrect` | `0` | Sugere alternativas sem executar uma correcao automaticamente, como na referencia. |
 
 ## Credenciais
 
@@ -148,9 +161,48 @@ Esse comportamento permite credenciais diferentes para organizacoes ou caminhos
 no mesmo host, mas pode criar entradas repetidas quando todos os repositorios
 usam o mesmo token.
 
-Nenhum `credential.helper`, token ou senha e gravado. Para autenticar, use SSH,
-integracao do 1Password ou um helper aprovado e instalado no Linux. Referencias
-a `wincredman` e executaveis em `C:/Users` nao funcionam no host Linux.
+Por padrao, nenhum `credential.helper`, token ou senha e gravado. A integracao
+Azure DevOps da referencia esta disponivel como opt-in, sem identidade ou
+organizacao corporativa predefinida:
+
+```yaml
+git_config_azure_devops_pat_enabled: true
+git_config_azure_devops_organization: example-org
+git_config_azure_devops_username: example-user
+```
+
+O helper e instalado em
+`~/.local/lib/ubuntu-desktop/git-credential-azure-devops.sh`, modo `0700`.
+Ele so fornece `AZURE_DEVOPS_EXT_PAT` para HTTPS em `dev.azure.com` e para o
+caminho da organizacao configurada. O PAT vem do ambiente do processo Git:
+nao e consultado nem persistido pelo Ansible. Os blocos em `.profile`,
+`.bashrc` e `.zshrc` contem somente `export AZURE_DEVOPS_EXT_PAT`, sem valor,
+preservando atribuicoes pessoais fora desses blocos.
+
+No escopo autorizado, helpers anteriores sao zerados e a falta de PAT encerra
+a autenticacao sem tentar credenciais antigas. Outros hosts/organizacoes nao
+recebem o token deste helper. `store` e `erase` nao gravam nem apagam dados.
+O helper nao faz rede ou mutacoes, nao cria logs em arquivo e reserva stdout
+ao protocolo de credenciais Git; erros e `--verbose` usam stderr sem valores.
+Retorna 0 em sucesso, 1 para PAT ausente/invalido e 2 para erro de uso.
+Nao imprima `git credential fill` nem habilite `set -x` com credenciais reais.
+
+Ajuda e simulacao do helper, sem PAT:
+
+```bash
+bash ansible/roles/git_config/files/git-credential-azure-devops.sh --help
+printf 'protocol=https\nhost=dev.azure.com\npath=example-org/projeto/_git/repo\n\n' |
+  bash ansible/roles/git_config/files/git-credential-azure-devops.sh \
+    --organization example-org --username example-user get --dry-run
+```
+
+Aliases: `-help`, `-h` e `-dryrun`. Opcoes `--organization` e `--username`
+sao obrigatorias para operacoes; `--` encerra opcoes. Ajuda nao le stdin nem
+requer parametros. A simulacao valida o escopo sem emitir credenciais.
+Desabilitar `git_config_azure_devops_pat_enabled` remove helper, escopo Git e
+blocos gerenciados, sem apagar valores pessoais. Use SSH ou um helper aprovado
+para outros fluxos; integracao biometrica 1Password exige configuracao propria
+e nao e fornecida pela CLI em container.
 
 ## Aplicacao e validacao
 
@@ -159,10 +211,10 @@ Simule e aplique somente em um alvo autorizado:
 ```bash
 bash scripts/bash/run-ansible.sh \
   --inventory ansible/inventories/private/lab/hosts.yml \
-  --limit workstation01 --tags terminal --dry-run --verbose
+  --limit workstation01 --tags git_config --dry-run --verbose
 bash scripts/bash/run-ansible.sh \
   --inventory ansible/inventories/private/lab/hosts.yml \
-  --limit workstation01 --tags terminal
+  --limit workstation01 --tags git_config
 ```
 
 Valide sem exibir segredos:
@@ -173,11 +225,31 @@ git config --global --get user.name
 git config --global --get user.email
 git config --global --get core.autocrlf
 git config --global --get init.defaultBranch
-git config --global --list --show-origin
+git config --global --name-only --list
 ```
 
-O check mode mostra se o template mudaria, mas a validacao pos-instalacao com
-`git config --file` roda somente no modo real. Logs ficam em `artifacts/logs/`.
+`--tags terminal` e `--tags development` tambem incluem a role para manter
+compatibilidade com comandos anteriores. A role `terminal` nao escreve mais
+no `.gitconfig`.
+
+Check mode consulta estado/identidade e planeja a configuracao sem alterar
+perfis ou helpers; diffs do `.gitconfig`, backup e perfis sao ocultados para
+nao expor conteudo preexistente sensivel. Validacao com `git config --file`
+roda antes da substituicao e apos a aplicacao real. Logs auditaveis ficam em
+`artifacts/logs/` pelo wrapper, sem PAT; nenhum privilegio root e necessario
+para a role Git. O preflight do playbook continua validando o usuario-alvo.
+
+Testes isolados, sem rede ou alteracao do Git real:
+
+```bash
+bats tests/bash/git-config.bats
+shellcheck ansible/roles/git_config/files/git-credential-azure-devops.sh
+shfmt -i 2 -ci -d ansible/roles/git_config/files/git-credential-azure-devops.sh
+```
+
+Os testes usam perfis temporarios, caminhos com espacos e PAT ficticio; cobrem
+`changed=0` na reaplicacao, simulacao sem escritas, limites de organizacao e
+ausencia de fallback inseguro. Credenciais reais nao foram testadas aqui.
 
 ## Riscos e recuperacao
 
@@ -191,9 +263,9 @@ Para restaurar temporariamente a configuracao anterior:
 
 ```bash
 install -m 0600 "$HOME/.gitconfig.pre-ansible" "$HOME/.gitconfig"
-git config --global --list --show-origin
+git config --global --get core.autocrlf
 ```
 
 A proxima aplicacao restaura o template. Para uma mudanca permanente, ajuste
-`terminal_git_user_name`, `terminal_git_user_email` ou o template e valide em
+`git_config_user_name`, `git_config_user_email` ou o template e valide em
 uma VM descartavel antes de aplicar na estacao de trabalho.

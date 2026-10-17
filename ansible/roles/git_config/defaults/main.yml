@@ -1,0 +1,7 @@
+---
+git_config_user_name: "{{ terminal_git_user_name | default('') }}"
+git_config_user_email: "{{ terminal_git_user_email | default('') }}"
+git_config_group: "{{ ubuntu_desktop_user }}"
+git_config_azure_devops_pat_enabled: false
+git_config_azure_devops_organization: ''
+git_config_azure_devops_username: ''

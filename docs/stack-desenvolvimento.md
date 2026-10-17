@@ -238,18 +238,79 @@ diretamente e executam no usuario atual.
 
 ## Node em container e Copilot CLI local
 
-A automacao nao instala Node.js, npm ou npx no host. As funcoes `node`, `npm` e
-`npx` usam `docker.io/lzocateli/devops:cpu-ubuntu24.04`, montam o diretorio atual em
+A automacao nao instala Node.js, npm ou npx no host. As funcoes `node`, `npm`,
+`npx` e `ng` usam `docker.io/lzocateli/devops:cpu-v1`, montam o diretorio atual em
 `/workspace` e executam com o UID/GID do usuario:
 
 ```bash
 node --version
 npm --version
 npx --version
+ng version
 ```
 
-A tag Ubuntu 24.04 identifica somente a imagem de desenvolvimento; o sistema
-host suportado pela automacao e Ubuntu 26.04.
+A role `terminal` consulta a imagem rootless e faz `podman pull` somente se
+ausente. O Docker Hub e publico: sem login, token ou dependencia do Artifactory.
+As funcoes usam `--pull=never`. Altere a tag/digest em `terminal_devops_image`
+para preparar outra versao; uma tag presente nao e atualizada implicitamente.
+
+O Angular CLI e instalado do npm publico em
+`~/.local/share/ubuntu-desktop/devops-home/.local/npm`, somente se `bin/ng`
+estiver ausente. `terminal_angular_cli_package` aceita `@angular/cli@VERSAO`
+ou tag; o padrao da referencia e `@angular/cli@latest`. Para reproducibilidade,
+fixe uma versao no inventario. Alterar essa variavel nao atualiza uma instalacao
+existente; planeje a atualizacao separadamente.
+
+`lh` usa `eza --long --all --group --color=auto`; `lhr` faz busca recursiva,
+por exemplo `lhr '*.yml' '*.json'`. Cores sao ativadas em TTY, sem ANSI em pipes.
+O container pode escrever no workspace e no seu home privado, mas nao recebe
+o socket Podman nem as credenciais do GitHub/Copilot.
+
+As funcoes seguem o mesmo modelo modular da referencia: cada uma possui um
+template proprio em `ansible/roles/terminal/templates/` (`node.sh.j2`,
+`npm.sh.j2`, `npx.sh.j2`, `ng.sh.j2`, `op.sh.j2`, `lh.sh.j2` e `lhr.sh.j2`).
+O Ansible instala os sete arquivos em `~/.local/lib/ubuntu-desktop/`, com modo
+`0600` e validacao Bash antes de substituir. `development-shell.sh` mantem o
+ambiente, a auditoria e o executor comum, e carrega as funcoes individuais em
+Bash/ZSH. `op-container.sh.j2` continua sendo o wrapper executavel separado;
+o autenticador Azure DevOps corporativo da referencia nao faz parte do fluxo.
+
+Ajuda e simulacao do provisionamento, a partir da raiz:
+
+```bash
+bash scripts/bash/run-ansible.sh --help
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/example/hosts.yml \
+  --limit ubuntu-workstation.example.invalid --tags terminal --dry-run --verbose
+```
+
+O inventario de exemplo nao e um host real. Para aplicar, substitua inventario
+e limite por uma VM autorizada e remova `--dry-run`. Na primeira instalacao,
+inclua `--tags host_tools,terminal` para instalar Podman e eza. O check mode
+nao baixa imagens, instala Angular nem consulta secrets. O wrapper Ansible
+registra auditoria em `artifacts/logs/`. Chamadas reais de `node`/`npm`/`npx`/`ng`
+registram timestamp UTC, nivel, ID e modo em
+`~/.local/share/ubuntu-desktop/artifacts/logs/`, tambem no stderr. Falha de log
+impede iniciar o container; argumentos e variaveis nao sao registrados.
+
+Validacao isolada, sem containers reais:
+
+```bash
+bats tests/bash/development-shell.bats tests/bash/op-container.bats \
+  tests/bash/load-1password-env.bats
+ansible-playbook -i localhost, tests/ansible/terminal-zsh.yml
+```
+
+Os testes verificam segunda aplicacao com `changed=0` e ausencia de `pull`/`run`
+na simulacao com Podman substituido. Nao substituem validacao de rede, conteudo
+da imagem ou GNOME em VM Ubuntu 26.04 amd64. Se a imagem estiver ausente,
+reaplique a role; outros erros Podman interrompem o fluxo. Para recuperar o
+shell anterior, restaure seu backup de `.profile`/`.zshrc` e reabra a sessao.
+Nao apague homes privados sem backup. Descarte logs conforme a retencao
+operacional definida pelo usuario, sem remover configuracoes do container.
+
+A tag `cpu-v1` identifica a imagem DevOps que deve fornecer Node, npm e op;
+o sistema host suportado pela automacao e Ubuntu 26.04.
 
 O Copilot CLI 1.0.91 e instalado como binario standalone oficial em
 `/opt/copilot-cli/1.0.91/copilot`, com link em `/usr/local/bin/copilot`. O
@@ -388,7 +449,7 @@ gh --version
 
 ## 1Password
 
-Instale Desktop e CLI pelo repositorio oficial:
+Instale o Desktop pelo repositorio oficial; a CLI e fornecida pelo container:
 
 ```bash
 sudo curl --fail --silent --show-error --location \
@@ -398,16 +459,32 @@ printf '%s\n' \
   'deb [arch=amd64 signed-by=/etc/apt/keyrings/1password.asc] https://downloads.1password.com/linux/debian/amd64 stable main' |
   sudo tee /etc/apt/sources.list.d/1password.list >/dev/null
 sudo apt update
-sudo apt install -y 1password 1password-cli
+sudo apt install -y 1password
 1password --version
 op --version
 ```
 
-Ative integracao entre Desktop, CLI e SSH Agent somente apos revisar as politicas
-da organizacao. Nao execute `op signin` em automacao com logs.
+O Ansible instala `~/.local/bin/op` e a funcao shell `op`. A configuracao fica
+isolada em `~/.local/share/ubuntu-desktop/onepassword-home`, com permissoes
+privadas. Somente `OP_SERVICE_ACCOUNT_TOKEN`, `OP_CONNECT_HOST`, `OP_CONNECT_TOKEN`
+e `OP_SESSION_*` sao encaminhadas por nome, sem valores nos argumentos. Isso nao
+habilita integracao biometrica com o Desktop do host. A CLI nativa ja instalada
+nao e removida automaticamente.
 
-Para carregar um documento `.env` do 1Password no profile Linux sem grava-lo
-descriptografado, use a secao
+```bash
+op --help
+op --dry-run item list
+op -- --help
+```
+
+O wrapper aceita `-help`, `-h`, `-dryrun`, `--verbose` e `--` para encaminhamento
+direto. Ajuda e simulacao nao precisam de Podman, rede ou token, nao criam
+arquivos e nao fazem consultas. A CLI retorna seu status; uso invalido retorna
+2 e Podman ausente retorna 127. Dados ficam no stdout; auditoria no stderr e
+em `onepassword-home/artifacts/logs/`. Nao use `op signin` em automacao com logs.
+
+Para incorporar exports literais de um documento `.env` ao profile Linux,
+gravado com modo `0600`, use a secao
 [Ambiente Linux pelo 1Password](automacao-ansible.md#ambiente-linux-pelo-1password).
 
 ## uv
@@ -446,13 +523,31 @@ Para iniciar no ZSH:
 
 ```bash
 eval "$(oh-my-posh init zsh --config \
-  "$HOME/.config/oh-my-posh/atomic.omp-VISION.json")"
+  "$HOME/.config/oh-my-posh/atomic.omp.json")"
 zsh -lc 'oh-my-posh version'
 ```
 
 A automacao Ansible instala o tema a partir de
-`ansible/roles/terminal/files/atomic.omp-VISION.json` e usa bloco gerenciado no
+`ansible/roles/terminal/files/atomic.omp.json` e usa bloco gerenciado no
 `.zshrc`; nao acrescente uma segunda inicializacao manual.
+
+O JSON e baseado na referencia `ubuntu-desktop-cat`, com deteccao de Azure CLI,
+Ansible e Terraform adaptada para depender somente dos arquivos da pasta.
+`azure.yaml`, pipelines Azure ou arquivos Bicep ativam Azure CLI; `ansible.cfg`,
+playbooks ou arquivos `*.ansible.yml` ativam Ansible; arquivos Terraform ou
+Terragrunt ativam Terraform. A pasta `.azure` sozinha nao ativa indicador,
+pois `~/.azure` tambem guarda configuracao global da CLI.
+
+Os rotulos indicam contexto de projeto, nao apps abertos ou instalados.
+`POSH_HAS_AZ`, `POSH_HAS_ANSIBLE` e `POSH_HAS_TERRAFORM` nao sao mais geradas
+pelo runtime nem consultadas pelo tema; valores herdados nao ativam rotulos.
+Os testes de renderizacao em `tests/bash/development-shell.bats` requerem
+Oh My Posh e jq, e usam pastas/cache descartaveis sem executar containers.
+
+O `.profile` e carregado antes do prompt.
+`DOTNET_ROOT` e `SSL_CERT_DIR` predefinidos sao preservados; o PATH recebe apenas
+entradas ausentes. O unico tema distribuido e `atomic.omp.json`, definido por
+`terminal_oh_my_posh_config_file`.
 
 ## Oh My Zsh
 

@@ -95,7 +95,7 @@
   ansible.builtin.set_fact:
     host_tools_packages_effective: >-
       {{ host_tools_packages
-         + (['1password', '1password-cli']
+         + (['1password']
             if host_tools_install_1password | bool else []) }}
 
 - name: Instalar ferramentas do host
@@ -343,7 +343,6 @@
     argv: "{{ item.command }}"
   loop:
     - {name: 1Password Desktop, command: [1password, --version]}
-    - {name: 1Password CLI, command: [op, --version]}
   loop_control:
     label: "{{ item.name }}"
   register: host_tools_1password_validation

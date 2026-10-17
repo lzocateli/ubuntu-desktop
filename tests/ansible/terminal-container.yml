@@ -1,0 +1,30 @@
+---
+- name: Validar imagem e Angular em fixture descartavel com Podman simulado
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ubuntu_desktop_home: "{{ lookup('env', 'FIXTURE_HOME') }}"
+    ubuntu_desktop_user: "{{ lookup('env', 'USER') }}"
+    ansible_user_uid: "{{ lookup('env', 'FIXTURE_UID') }}"
+    ansible_user_gid: "{{ lookup('env', 'FIXTURE_GID') }}"
+  vars_files:
+    - ../../ansible/roles/terminal/defaults/main.yml
+  tasks:
+    - name: Exigir fixture explicita e Podman simulado
+      ansible.builtin.assert:
+        that:
+          - ubuntu_desktop_home.startswith('/tmp/')
+          - lookup('env', 'IMAGE_STATE').startswith('/tmp/')
+          - lookup('env', 'FIXTURE_BIN').startswith('/tmp/')
+          - lookup('env', 'PATH').split(':')[0] == lookup('env', 'FIXTURE_BIN')
+
+    - name: Exercitar preparacao da imagem e wrapper
+      ansible.builtin.include_role:
+        name: terminal
+        tasks_from: devops-container
+
+    - name: Exercitar instalacao Angular persistente
+      ansible.builtin.include_role:
+        name: terminal
+        tasks_from: angular-cli

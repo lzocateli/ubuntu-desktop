@@ -26,11 +26,9 @@
     - terminal_wireguard_enabled | bool
     - not ansible_check_mode
 
-- name: Validar 1Password CLI no controller para WireGuard
+- name: Validar CLI 1Password em container no alvo para WireGuard
   ansible.builtin.command:
-    argv: [op, --version]
-  delegate_to: localhost
-  run_once: true
+    argv: ["{{ ubuntu_desktop_home }}/.local/bin/op", --version]
   register: terminal_wireguard_op_version
   changed_when: false
   failed_when: terminal_wireguard_op_version.rc != 0
@@ -50,14 +48,12 @@
 - name: Baixar anexos WireGuard do 1Password
   ansible.builtin.command:
     argv:
-      - op
+      - "{{ ubuntu_desktop_home }}/.local/bin/op"
       - read
       - --no-newline
       - "op://{{ terminal_wireguard_vault }}/{{ terminal_wireguard_item }}/{{ item.document }}"
   environment:
     OP_SERVICE_ACCOUNT_TOKEN: "{{ lookup('ansible.builtin.env', 'OP_SERVICE_ACCOUNT_TOKEN') }}"
-  delegate_to: localhost
-  run_once: true
   loop: "{{ terminal_wireguard_profiles }}"
   loop_control:
     label: "{{ item.document }}"

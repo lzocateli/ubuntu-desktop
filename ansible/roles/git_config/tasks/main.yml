@@ -1,0 +1,168 @@
+---
+- name: Validar escopo do credential helper Azure DevOps
+  ansible.builtin.assert:
+    that:
+      - git_config_azure_devops_organization is match('^[a-zA-Z0-9_-]+$')
+      - git_config_azure_devops_username | length > 0
+      - git_config_azure_devops_username.splitlines() | length == 1
+      - "'\r' not in git_config_azure_devops_username"
+    fail_msg: Configure organizacao e usuario HTTPS validos para o Azure DevOps.
+  when: git_config_azure_devops_pat_enabled | bool
+
+- name: Validar identidade Git configurada
+  ansible.builtin.assert:
+    that:
+      - git_config_user_name | length == 0 or git_config_user_name.splitlines() | length == 1
+      - git_config_user_email | length == 0 or git_config_user_email.splitlines() | length == 1
+      - git_config_user_email | length == 0 or git_config_user_email | length > 3
+      - git_config_user_email | length == 0 or '@' in git_config_user_email
+      - (git_config_user_name | length == 0) == (git_config_user_email | length == 0)
+    fail_msg: Configure nome e email juntos ou deixe ambos vazios para preservar a identidade existente.
+
+- name: Consultar arquivo Git global existente
+  ansible.builtin.stat:
+    path: "{{ ubuntu_desktop_home }}/.gitconfig"
+  register: git_config_existing_file
+
+- name: Identificar arquivo Git ja gerenciado
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -Fqx
+      - --
+      - '# Gerenciado pelo Ansible. Altere as variaveis da role git_config.'
+      - "{{ ubuntu_desktop_home }}/.gitconfig"
+  register: git_config_managed_marker
+  changed_when: false
+  failed_when: git_config_managed_marker.rc not in [0, 1]
+  check_mode: false
+  when: git_config_existing_file.stat.exists
+
+- name: Preservar configuracao Git global anterior
+  ansible.builtin.copy:
+    src: "{{ ubuntu_desktop_home }}/.gitconfig"
+    dest: "{{ ubuntu_desktop_home }}/.gitconfig.pre-ansible"
+    remote_src: true
+    force: false
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ git_config_group }}"
+    mode: '0600'
+  no_log: true
+  diff: false
+  when:
+    - git_config_existing_file.stat.exists
+    - git_config_managed_marker.rc | default(1) != 0
+
+- name: Consultar identidade Git global existente
+  ansible.builtin.command:
+    argv: [git, config, --file, "{{ ubuntu_desktop_home }}/.gitconfig", --get, "{{ item }}"]
+  loop: [user.name, user.email]
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  register: git_config_previous_identity
+  changed_when: false
+  failed_when: git_config_previous_identity.rc not in [0, 1]
+  check_mode: false
+  when:
+    - git_config_existing_file.stat.exists
+    - git_config_user_name | length == 0
+
+- name: Derivar identidade Git efetiva
+  ansible.builtin.set_fact:
+    git_config_effective_user_name: >-
+      {{ git_config_user_name if git_config_user_name | length > 0 else
+      ((git_config_previous_identity.results | default([]) | map(attribute='stdout') | list | first) | default('')) }}
+    git_config_effective_user_email: >-
+      {{ git_config_user_email if git_config_user_email | length > 0 else
+      ((git_config_previous_identity.results | default([]) | map(attribute='stdout') | list | last) | default('')) }}
+
+- name: Criar diretorio privado dos helpers Git
+  ansible.builtin.file:
+    path: "{{ ubuntu_desktop_home }}/.local/lib/ubuntu-desktop"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ git_config_group }}"
+    mode: '0700'
+  when: git_config_azure_devops_pat_enabled | bool
+
+- name: Instalar credential helper Azure DevOps
+  ansible.builtin.copy:
+    src: git-credential-azure-devops.sh
+    dest: "{{ ubuntu_desktop_home }}/.local/lib/ubuntu-desktop/git-credential-azure-devops.sh"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ git_config_group }}"
+    mode: '0700'
+    validate: /bin/bash -n %s
+  when: git_config_azure_devops_pat_enabled | bool
+
+- name: Remover credential helper Azure DevOps desabilitado
+  ansible.builtin.file:
+    path: "{{ ubuntu_desktop_home }}/.local/lib/ubuntu-desktop/git-credential-azure-devops.sh"
+    state: absent
+  when: not git_config_azure_devops_pat_enabled | bool
+
+- name: Consultar arquivos dos shells antes de gerenciar exportacao PAT
+  ansible.builtin.stat:
+    path: "{{ ubuntu_desktop_home }}/{{ item.name }}"
+  loop:
+    - {name: .profile, mode: '0600'}
+    - {name: .bashrc, mode: '0644'}
+    - {name: .zshrc, mode: '0644'}
+  register: git_config_shell_profiles
+
+- name: Exportar variavel PAT sem atribuir ou persistir seu valor
+  ansible.builtin.blockinfile:
+    path: "{{ ubuntu_desktop_home }}/{{ item.item.name }}"
+    create: "{{ git_config_azure_devops_pat_enabled | bool }}"
+    state: "{{ 'present' if git_config_azure_devops_pat_enabled | bool else 'absent' }}"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ git_config_group }}"
+    mode: "{{ item.item.mode }}"
+    marker: '# {mark} ANSIBLE AZURE DEVOPS PAT ENV'
+    block: |
+      export AZURE_DEVOPS_EXT_PAT
+  diff: false
+  no_log: true
+  loop: "{{ git_config_shell_profiles.results }}"
+  when: git_config_azure_devops_pat_enabled | bool or item.stat.exists
+
+- name: Aplicar configuracao Git global no perfil do usuario
+  ansible.builtin.template:
+    src: gitconfig.j2
+    dest: "{{ ubuntu_desktop_home }}/.gitconfig"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ git_config_group }}"
+    mode: '0600'
+    validate: /usr/bin/git config --file %s --list
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  diff: false
+
+- name: Consultar configuracao Git global aplicada
+  ansible.builtin.command:
+    argv:
+      - git
+      - config
+      - --file
+      - "{{ ubuntu_desktop_home }}/.gitconfig"
+      - --get-regexp
+      - ^(user\.name|user\.email|core\.autocrlf|init\.defaultBranch)$
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  register: git_config_validation
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Validar configuracao Git global aplicada
+  ansible.builtin.assert:
+    that:
+      - "'core.autocrlf input' in git_config_validation.stdout_lines"
+      - "'init.defaultbranch main' in git_config_validation.stdout_lines"
+      - >-
+        git_config_effective_user_name | length == 0 or
+        ('user.name ' ~ git_config_effective_user_name) in git_config_validation.stdout_lines
+      - >-
+        git_config_effective_user_email | length == 0 or
+        ('user.email ' ~ git_config_effective_user_email) in git_config_validation.stdout_lines
+    fail_msg: O arquivo ~/.gitconfig nao corresponde a configuracao gerenciada.
+  when: not ansible_check_mode

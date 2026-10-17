@@ -1,39 +1,38 @@
-export SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs"
-export DOTNET_ROOT="$HOME/.dotnet"
-case "$PATH" in
-  "$DOTNET_ROOT:$DOTNET_ROOT/tools:"*) ;;
-  *) export PATH="$DOTNET_ROOT:$DOTNET_ROOT/tools:$PATH" ;;
+export SSL_CERT_DIR="${SSL_CERT_DIR:-$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs}"
+export DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+case ":$PATH:" in
+  *":$DOTNET_ROOT/tools:"*) ;;
+  *) export PATH="$DOTNET_ROOT/tools:$PATH" ;;
+esac
+case ":$PATH:" in
+  *":$DOTNET_ROOT:"*) ;;
+  *) export PATH="$DOTNET_ROOT:$PATH" ;;
 esac
 
-alias lh='ls -lha'
-
-_ubuntu_desktop_lhr() {
-  local pattern
-  local -a find_args=(-false)
-
-  for pattern in "$@"; do
-    find_args+=(-o -name "$pattern")
-  done
-  if (( $# == 0 )); then
-    find_args=(-name '*')
-  fi
-
-  command find . -type f '(' "${find_args[@]}" ')' -exec ls -lha -- '{}' +
-}
-
-if [ -n "${ZSH_VERSION:-}" ]; then
-  alias lhr='noglob _ubuntu_desktop_lhr'
-else
-  alias lhr='_ubuntu_desktop_lhr'
-fi
+_ubuntu_desktop_container_audit() (
+  umask 077
+  local log_dir="$HOME/.local/share/ubuntu-desktop/artifacts/logs"
+  local timestamp run_id
+  timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" || return 1
+  run_id="$(date -u '+%Y%m%dT%H%M%S%N')-$$-$RANDOM" || return 1
+  command mkdir -p "$log_dir" || return 1
+  printf '%s INFO run=%s modo=real container devops\n' "$timestamp" "$run_id" \
+    >>"$log_dir/container-$run_id.log" || return 1
+  printf '%s INFO run=%s modo=real container devops\n' "$timestamp" "$run_id" >&2
+)
 
 _ubuntu_desktop_devops_run() {
   if ! command -v podman >/dev/null 2>&1; then
     printf 'podman nao esta disponivel no host.\n' >&2
     return 127
   fi
+  _ubuntu_desktop_container_audit || return 1
 
-  local -a podman_args=(run --rm)
+  local -a podman_args=(run --pull=never --rm)
   [[ -t 0 ]] && podman_args+=(-i)
   [[ -t 1 ]] && podman_args+=(-t)
 
@@ -41,20 +40,20 @@ _ubuntu_desktop_devops_run() {
     --userns=keep-id \
     --user "$(id -u):$(id -g)" \
     --env HOME=/home/dev \
+    --env NPM_CONFIG_PREFIX=/home/dev/.local/npm \
+    --env NPM_CONFIG_CACHE=/home/dev/.npm \
+    --env NPM_CONFIG_REGISTRY=https://registry.npmjs.org/ \
+    --env PATH=/home/dev/.local/npm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     --mount "type=bind,source=$PWD,target=/workspace" \
     --mount "type=bind,source=$HOME/.local/share/ubuntu-desktop/devops-home,target=/home/dev" \
     --workdir /workspace \
     {{ terminal_devops_image | quote }} "$@"
 }
 
-node() {
-  _ubuntu_desktop_devops_run node "$@"
-}
-
-npm() {
-  _ubuntu_desktop_devops_run npm "$@"
-}
-
-npx() {
-  _ubuntu_desktop_devops_run npx "$@"
-}
+for _ubuntu_desktop_function in node npm npx ng op lh lhr; do
+  _ubuntu_desktop_function_file="$HOME/.local/lib/ubuntu-desktop/${_ubuntu_desktop_function}.sh"
+  if [ -r "$_ubuntu_desktop_function_file" ]; then
+    . "$_ubuntu_desktop_function_file"
+  fi
+done
+unset _ubuntu_desktop_function _ubuntu_desktop_function_file

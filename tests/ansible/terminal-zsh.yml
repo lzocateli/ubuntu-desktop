@@ -11,14 +11,14 @@
     - name: Carregar tema Oh My Posh do projeto
       ansible.builtin.set_fact:
         terminal_zsh_test_theme: >-
-          {{ lookup('file', '../../ansible/roles/terminal/files/atomic.omp-VISION.json')
+          {{ lookup('file', '../../ansible/roles/terminal/files/atomic.omp.json')
              | from_json }}
 
     - name: Garantir caminhos e parametros persistentes do ZSH
       ansible.builtin.assert:
         that:
-          - terminal_oh_my_posh_config_file == 'atomic.omp-VISION.json'
-          - terminal_oh_my_posh_config_path == '/home/example/.config/oh-my-posh/atomic.omp-VISION.json'
+          - terminal_oh_my_posh_config_file == 'atomic.omp.json'
+          - terminal_oh_my_posh_config_path == '/home/example/.config/oh-my-posh/atomic.omp.json'
           - terminal_zsh_history_size == 50000
           - terminal_vscode_terminal_font_family == 'MesloLGM Nerd Font'
           - terminal_vscode_settings_path == '/home/example/.config/Code/User/settings.json'
@@ -26,3 +26,48 @@
           - terminal_zsh_test_theme.version == 3
           - terminal_zsh_test_theme.blocks | length > 0
           - terminal_zsh_test_theme.blocks | selectattr('type', 'equalto', 'prompt') | list | length > 0
+
+    - name: Carregar tarefas de integracao do profile
+      ansible.builtin.set_fact:
+        terminal_profile_test_tasks: >-
+          {{ lookup('file', '../../ansible/roles/terminal/tasks/main.yml') | from_yaml }}
+
+    - name: Selecionar blocos gerenciados para validacao isolada
+      ansible.builtin.set_fact:
+        terminal_profile_test_environment: >-
+          {{ (terminal_profile_test_tasks
+              | selectattr('name', 'equalto', 'Configurar ambiente POSIX no profile sem sobrescrever variaveis existentes')
+              | first)['ansible.builtin.blockinfile']['block'] }}
+        terminal_profile_test_loader: >-
+          {{ (terminal_profile_test_tasks
+              | selectattr('name', 'equalto', 'Carregar integracao de desenvolvimento nos shells')
+              | first)['ansible.builtin.blockinfile']['block'] }}
+
+    - name: Validar exports POSIX e preservacao de valores em shells suportados
+      ansible.builtin.command:
+        expand_argument_vars: false
+        argv:
+          - "{{ item }}"
+          - -c
+          - |
+            export DOTNET_ROOT=/tmp/sdk-custom SSL_CERT_DIR=/tmp/cert-custom
+            {{ terminal_profile_test_environment }}
+            previous_path="$PATH"
+            {{ terminal_profile_test_environment }}
+            test "$DOTNET_ROOT" = /tmp/sdk-custom &&
+              test "$SSL_CERT_DIR" = /tmp/cert-custom &&
+              test "$PATH" = "$previous_path"
+      loop: [dash, bash, zsh]
+      changed_when: false
+
+    - name: Validar carregamento condicionado ao shell sem consultar home real
+      ansible.builtin.command:
+        expand_argument_vars: false
+        argv:
+          - dash
+          - -c
+          - "{{ terminal_profile_test_loader }}"
+      environment:
+        BASH_VERSION: ''
+        ZSH_VERSION: ''
+      changed_when: false

@@ -43,7 +43,7 @@ bibliotecas e dependencias nao estao listados individualmente.
 | Flatpak | Bruno, Microsoft Edge, Remmina, Flatseal e Extension Manager | Instalados em escopo de sistema pelo Flathub; Edge e instalado por padrao |
 | Firefox | Firefox Snap | Removido junto com Snap somente se a migracao destrutiva for explicitamente habilitada e confirmada; Firefox Flatpak nao e instalado por padrao |
 | Desktop | Visual Studio Code, Tilix e GNOME Software | VS Code pelo repositorio Microsoft; Tilix e GNOME Software via APT |
-| Senhas | 1Password Desktop e 1Password CLI | Ambos instalados por padrao; desabilite com `host_tools_install_1password: false` |
+| Senhas | 1Password Desktop e CLI em container | Desktop via APT; funcao e wrapper `op` usam imagem DevOps publica, sem instalar a CLI nativa |
 | Containers | Podman rootless e Podman Compose | Sem daemon root; imagens e dados ficam no home do usuario |
 | Armazenamento | Discos ext4 e cliente Nextcloud Desktop | Montagem persistente de `/mnt/kingston` configurada manualmente; sincronizacao em `/mnt/kingston/Nextcloud` |
 | VPN | WireGuard CLI e integracao grafica do NetworkManager; Mullvad Desktop e CLI | WireGuard pode ser configurado pelo GNOME Network Settings; Mullvad e instalado sem login nem conexao automatica |
@@ -52,7 +52,11 @@ bibliotecas e dependencias nao estao listados individualmente.
 | Terminal | uv, uvx, Oh My Posh com tema Atomic, Oh My Zsh com historico persistente e MesloLGM Nerd Font | Tema e historico configurados pela role Ansible `terminal` |
 | Copilot | GitHub Copilot CLI 1.0.91 | Binario standalone instalado no host |
 | Claude Code | Claude Code CLI | Repositorio APT oficial Anthropic no canal `stable` |
-| Node.js | Node, npm e npx | Disponiveis por funcoes shell que executam a imagem `docker.io/lzocateli/devops:cpu-ubuntu24.04` via Podman; nao sao instalados no host |
+| Node.js | Node, npm, npx e Angular CLI | Funcoes usam `docker.io/lzocateli/devops:cpu-v1` via Podman; imagem preparada pelo Ansible e Angular persistente no home do container |
+
+As funcoes `lh` e `lhr` usam `eza` com cores automaticas. O ZSH carrega o
+`.profile` antes do tema customizado `atomic.omp.json`, equivalente ao projeto
+de referencia. Veja [o fluxo de containers](docs/stack-desenvolvimento.md#node-em-container-e-copilot-cli-local).
 
 Firefox Snap so e removido quando a migracao do Snap e solicitada com as duas
 confirmacoes exigidas; essa operacao tambem remove o Snap e seus dados

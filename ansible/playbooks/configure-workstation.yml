@@ -14,6 +14,8 @@
       tags: [nextcloud, applications]
     - role: host_tools
       tags: [host_tools, development]
+    - role: git_config
+      tags: [git_config, terminal, development]
     - role: terminal
       tags: [terminal, development]
     - role: snap_migration

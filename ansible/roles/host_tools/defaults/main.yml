@@ -22,6 +22,7 @@ host_tools_claude_code_apt_uri: https://downloads.claude.ai/claude-code/apt/stab
 host_tools_kubernetes_repository_version: v1.34
 host_tools_apt_architecture: amd64
 host_tools_packages:
+  - eza
   - azure-cli
   - claude-code
   - code

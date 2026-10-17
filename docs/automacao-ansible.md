@@ -283,7 +283,7 @@ de trabalho sem autorizacao.
 | `ansible/roles/nextcloud_client/` | Cliente Nextcloud e pasta de sincronizacao |
 | `ansible/roles/host_tools/` | Repositorios, SDKs, CLIs e Podman rootless |
 | `ansible/roles/terminal/` | uv, ZSH, Oh My Posh, Oh My Zsh e fonte |
-| `ansible/roles/terminal/files/atomic.omp-VISION.json` | Tema Oh My Posh utilizado pelo ZSH |
+| `ansible/roles/terminal/files/atomic.omp.json` | Tema customizado Oh My Posh utilizado pelo ZSH |
 | `ansible/roles/snap_migration/` | Remocao e bloqueio opt-in do Snap |
 | `scripts/bash/bootstrap-ansible.sh` | Dependencias do controller |
 | `scripts/bash/run-ansible.sh` | Wrapper operacional |
@@ -449,14 +449,16 @@ uso. O conteudo dos arquivos nao e escrito no log.
 
 ## Configuracao Git do usuario
 
-A role `terminal` cria `/home/lzocateli/.gitconfig` com proprietario `lzocateli` e
+A role `git_config` cria `/home/lzocateli/.gitconfig` com proprietario `lzocateli` e
 modo `0600`. Se um arquivo anterior existir, a primeira aplicacao preserva uma
 copia em `~/.gitconfig.pre-ansible`; execucoes posteriores nao sobrescrevem essa
 copia. O Ansible valida o arquivo com o proprio comando `git config` antes de
 substitui-lo.
 
-A identidade vem de `terminal_git_user_name` e `terminal_git_user_email`. O
-estado gerenciado tambem configura:
+A identidade vem de `git_config_user_name` e `git_config_user_email`, com
+fallback para as variaveis legadas `terminal_git_user_name` e
+`terminal_git_user_email`. Se ambos estiverem vazios, preserva a identidade
+existente. O estado gerenciado tambem configura:
 
 - VS Code como editor, editor de rebase, difftool e mergetool;
 - LF, `core.autocrlf=input`, verificacao de line endings e file mode do Linux;
@@ -468,6 +470,13 @@ O arquivo nao armazena tokens nem configura um helper dependente do Windows.
 `credential.useHttpPath=true` evita colisao entre credenciais de caminhos
 distintos quando um helper aprovado for instalado. Para acesso remoto, prefira
 SSH, integracao do 1Password ou autentique uma ferramenta apropriada ao servico.
+
+A role independente inclui o helper PAT da referencia como opt-in por
+`git_config_azure_devops_pat_enabled: true`; organizacao e usuario precisam ser
+informados, sem defaults corporativos. O PAT e lido do ambiente do Git e nunca
+persistido pelo Ansible. Consulte [parametros e limites](README_gitconfig.md#credenciais).
+Use `--tags git_config` para aplicar somente Git; `--tags terminal` permanece
+compativel e inclui a nova role. A role terminal deixou de gerenciar o arquivo.
 
 Valide sem revelar credenciais:
 
@@ -755,9 +764,9 @@ em dois caminhos; desmonte a montagem grafica existente antes de montar em
 
 ## Chaves SSH e NuGet
 
-Na execucao real, a role `terminal` usa `op` no controller Ansible para ler o
+Na execucao real, a role `terminal` usa `op` em container no alvo para ler o
 campo `chave privada` dos itens SSH configurados no vault `Automation`. O
-controller precisa ter o 1Password CLI e a variavel de ambiente
+controller precisa fornecer a variavel de ambiente
 `OP_SERVICE_ACCOUNT_TOKEN` definida com acesso somente de leitura ao vault. O
 token nao deve ser salvo no inventario nem passado como argumento de linha de
 comando. As consultas ao 1Password e a instalacao das chaves sao omitidas em
@@ -871,15 +880,17 @@ segredos via ambiente; prefira referencias `op://` quando houver suporte.
 
 ### Preparar o 1Password
 
-1. No aplicativo 1Password, habilite a integracao com o CLI em **Settings >
-   Developer > Integrate with 1Password CLI**.
-2. Crie ou escolha um vault, por exemplo `Engineering`.
-3. Adicione o `.env` como documento/arquivo, por exemplo `development.env`.
-4. Desbloqueie o aplicativo e confirme o acesso, no mesmo usuario e contexto de
-  conexao usados pelo Ansible, sem imprimir o documento:
+1. Mantenha o aplicativo Desktop instalado para uso grafico. A CLI em container
+  nao usa a integracao biometrica do aplicativo no host.
+2. Escolha um vault, por exemplo `Engineering`, e adicione o documento
+  `development.env`.
+3. Disponibilize `OP_SERVICE_ACCOUNT_TOKEN` no ambiente do controller via
+  gerenciador de secrets, com acesso minimo ao documento. Nao grave o token
+  no inventario ou nos argumentos.
+4. O playbook prepara primeiro a imagem e o wrapper no alvo. Apos essa etapa,
+  confirme o acesso no usuario-alvo, sem imprimir o documento:
 
 ```bash
-op account list
 op vault get Engineering >/dev/null
 op document get development.env --vault Engineering >/dev/null
 ```
@@ -924,9 +935,8 @@ bash scripts/bash/run-ansible.sh \
 
 Check mode nao acessa o documento nem altera o bloco secreto, pois nao existe
 simulacao segura para autenticar e baixar seu conteudo. Na execucao real, o CLI
-`op` pode solicitar autorizacao pelo aplicativo Desktop. O Ansible nao abre nem
-desbloqueia automaticamente a interface grafica e falha se o acesso nao estiver
-disponivel.
+em container recebe o token de servico sem depender do desbloqueio do Desktop.
+O Ansible nao abre a interface grafica e falha se o acesso nao estiver disponivel.
 
 A automacao grava o bloco gerenciado em `~/.profile` com modo `0600`. Finalize a
 sessao e entre novamente, ou carregue o profile no Bash atual. Valide sem exibir
@@ -944,11 +954,19 @@ Para remover as variaveis persistidas, defina
 O Ansible remove o bloco gerenciado, mas nao consegue retirar variaveis ja
 herdadas pelos processos existentes. Nao ative `set -x` nem imprima valores.
 
+Antes da importacao, o renderizador le o `.profile` sem executa-lo e preserva
+nomes declarados fora do bloco `ANSIBLE 1PASSWORD ENV`. Reconhece declaracoes
+simples `NOME=valor` e `export NOME=valor`, inclusive com indentacao; nao e um
+interpretador de atribuicoes dinamicas ou multilinha. Entradas do bloco
+gerenciado podem ser atualizadas nas reaplicacoes, sem valores em diff/log.
+O arquivo e carregado pelo ZSH antes do prompt. Veja
+[containers e validacao](stack-desenvolvimento.md#node-em-container-e-copilot-cli-local).
+
 ## ZSH, historico e tema Oh My Posh
 
 A role `terminal` instala o tema versionado em
-`ansible/roles/terminal/files/atomic.omp-VISION.json` em
-`~/.config/oh-my-posh/atomic.omp-VISION.json` e configura o Oh My Posh para
+`ansible/roles/terminal/files/atomic.omp.json` em
+`~/.config/oh-my-posh/atomic.omp.json` e configura o Oh My Posh para
 carrega-lo no ZSH. O bloco Ansible gerenciado em `~/.zshrc` define o arquivo
 `~/.zsh_history`, `HISTSIZE`/`SAVEHIST` de 50.000 e as opcoes `APPEND_HISTORY`,
 `SHARE_HISTORY` e `EXTENDED_HISTORY`, alem de ignorar duplicatas, comandos
@@ -1008,18 +1026,24 @@ Variaveis principais:
 | `ubuntu_desktop_home` | `/home/lzocateli` | Home validado no `getent` |
 | `terminal_git_user_name` | `zocatel` no inventario | Nome de autor registrado nos commits, independente do login Linux |
 | `terminal_git_user_email` | E-mail definido no inventario | E-mail registrado nos commits |
+| `git_config_user_name` / `git_config_user_email` | Variaveis legadas `terminal_git_*` ou vazias | Nova identidade; vazios preservam o arquivo existente |
+| `git_config_group` | Mesmo nome de `ubuntu_desktop_user` | Grupo dos arquivos Git do perfil |
+| `git_config_azure_devops_pat_enabled` | `false` | Habilita helper PAT restrito ao Azure DevOps |
+| `git_config_azure_devops_organization` / `git_config_azure_devops_username` | Vazios | Obrigatorios quando o helper PAT esta habilitado |
 | `flatpak_apps_install_firefox` | `false` | Instala Firefox Flatpak |
-| `host_tools_install_1password` | `true` | Instala Desktop e CLI |
+| `host_tools_install_1password` | `true` | Instala Desktop; CLI em container pela role terminal |
 | `host_tools_dotnet_install_dir` | `{{ ubuntu_desktop_home }}/.dotnet` | Destino por usuario, validado pela role |
 | `host_tools_dotnet_sdks` | SDKs 8.0.425 e 10.0.402 com SHA-512 | Versoes instaladas lado a lado, sem remover as anteriores |
 | `host_tools_configure_dotnet_dev_certificate` | `true` | Cria e confia no certificado HTTPS .NET do usuario |
 | `terminal_configure_zsh` | `true` | Configura e define ZSH como shell |
-| `terminal_oh_my_posh_config_file` | `atomic.omp-VISION.json` | Tema distribuido pela role terminal |
-| `terminal_oh_my_posh_config_path` | `~/.config/oh-my-posh/atomic.omp-VISION.json` | Caminho do tema instalado |
+| `terminal_oh_my_posh_config_file` | `atomic.omp.json` | Tema customizado equivalente a referencia |
+| `terminal_oh_my_posh_config_path` | `~/.config/oh-my-posh/atomic.omp.json` | Caminho do tema instalado |
 | `terminal_zsh_history_size` | `50000` | Limite de historico carregado e salvo pelo ZSH |
 | `terminal_vscode_terminal_font_family` | `MesloLGM Nerd Font` | Familia da fonte do terminal integrado do VS Code |
 | `terminal_vscode_settings_path` | `~/.config/Code/User/settings.json` | Caminho das preferencias gerenciadas do VS Code |
-| `terminal_devops_image` | `docker.io/lzocateli/devops:cpu-ubuntu24.04` | Imagem para Node, npm e npx |
+| `terminal_devops_image` | `docker.io/lzocateli/devops:cpu-v1` | Imagem publica para Node, npm, npx, ng e op; baixada quando ausente |
+| `terminal_angular_cli_package` | `@angular/cli@latest` | Pacote publico instalado se ausente; fixe versao para reproducibilidade |
+| `terminal_onepassword_home_dir` | `~/.local/share/ubuntu-desktop/onepassword-home` | Home privado da CLI em container |
 | `terminal_copilot_cli_version` | `1.0.91` | Versao standalone do Copilot CLI instalada no host |
 | `terminal_copilot_cli_checksum` | SHA-256 do release 1.0.91 | Integridade do tarball Linux x64 |
 | `terminal_onepassword_env_enabled` | `false` | Baixa o `.env` e persiste exports no profile |
@@ -1055,8 +1079,8 @@ bash scripts/bash/run-ansible.sh \
   --remove-snap --confirm-remove-snap
 ```
 
-O exemplo acima presume `op` instalado no controller e acesso ao vault
-configurado. Forneca o token no ambiente via gerenciador de secrets do
+O exemplo usa o wrapper `op` preparado no alvo, sem exigir CLI no controller,
+e requer acesso ao vault configurado. Forneca o token via gerenciador de secrets do
 controller; nao o grave no shell profile, inventario, argumento de processo ou
 log. Se as chaves SSH nao fizerem parte da execucao, configure
 `terminal_ssh_key_items: []` e `terminal_ssh_hosts: []` no inventario privado.

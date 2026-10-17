@@ -26,11 +26,9 @@
     - not ansible_check_mode
     - terminal_ssh_key_items | length > 0
 
-- name: Validar 1Password CLI no controller
+- name: Validar CLI 1Password em container no alvo
   ansible.builtin.command:
-    argv: [op, --version]
-  delegate_to: localhost
-  run_once: true
+    argv: ["{{ ubuntu_desktop_home }}/.local/bin/op", --version]
   register: terminal_ssh_op_version
   changed_when: false
   failed_when: terminal_ssh_op_version.rc != 0
@@ -41,7 +39,7 @@
 - name: Baixar chaves SSH do 1Password
   ansible.builtin.command:
     argv:
-      - op
+      - "{{ ubuntu_desktop_home }}/.local/bin/op"
       - item
       - get
       - "{{ item }}"
@@ -54,8 +52,6 @@
       - json
   environment:
     OP_SERVICE_ACCOUNT_TOKEN: "{{ lookup('ansible.builtin.env', 'OP_SERVICE_ACCOUNT_TOKEN') }}"
-  delegate_to: localhost
-  run_once: true
   loop: "{{ terminal_ssh_key_items }}"
   loop_control:
     label: "{{ item }}"

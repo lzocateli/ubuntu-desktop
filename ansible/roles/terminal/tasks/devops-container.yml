@@ -1,0 +1,57 @@
+---
+- name: Validar imagem publica de desenvolvimento
+  ansible.builtin.assert:
+    that:
+      - terminal_devops_image is match('^docker[.]io/lzocateli/[a-z0-9._/-]+[:@][a-zA-Z0-9:._-]+$')
+    fail_msg: Defina uma imagem com tag ou digest no Docker Hub publico lzocateli.
+
+- name: Consultar imagem DevOps no Podman rootless sem alterar estado
+  ansible.builtin.command:
+    argv: [podman, image, exists, "{{ terminal_devops_image }}"]
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  register: terminal_devops_image_exists
+  changed_when: false
+  failed_when: terminal_devops_image_exists.rc not in [0, 1]
+  check_mode: false
+
+- name: Informar limitacao de download no check mode
+  ansible.builtin.debug:
+    msg: >-
+      Check mode nao baixa {{ terminal_devops_image }}. A imagem publica sera
+      baixada na execucao real, sem login, antes das consultas ao 1Password.
+  when:
+    - ansible_check_mode
+    - terminal_devops_image_exists.rc == 1
+
+- name: Baixar imagem publica ausente do Docker Hub
+  ansible.builtin.command:
+    argv: [podman, pull, "{{ terminal_devops_image }}"]
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - terminal_devops_image_exists.rc == 1
+
+- name: Criar diretorios privados da CLI 1Password em container
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0700'
+  loop:
+    - "{{ ubuntu_desktop_home }}/.local/bin"
+    - "{{ terminal_onepassword_home_dir }}"
+    - "{{ terminal_onepassword_home_dir }}/.config"
+    - "{{ terminal_onepassword_home_dir }}/.config/op"
+
+- name: Instalar wrapper executavel op para shells e automacoes
+  ansible.builtin.template:
+    src: op-container.sh.j2
+    dest: "{{ ubuntu_desktop_home }}/.local/bin/op"
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0750'
+    validate: bash -n %s

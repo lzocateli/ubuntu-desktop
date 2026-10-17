@@ -1,0 +1,41 @@
+---
+- name: Validar pacote Angular CLI publico
+  ansible.builtin.assert:
+    that:
+      - terminal_angular_cli_package is match('^@angular/cli@[a-zA-Z0-9.^~_-]+$')
+    fail_msg: Use somente @angular/cli com versao ou tag explicita.
+
+- name: Informar limitacao de instalacao Angular no check mode
+  ansible.builtin.debug:
+    msg: Check mode nao executa containers nem instala Angular CLI do npm publico.
+  when: ansible_check_mode
+
+- name: Instalar Angular CLI ausente usando imagem DevOps preparada
+  ansible.builtin.command:
+    argv:
+      - podman
+      - run
+      - --pull=never
+      - --rm
+      - --userns=keep-id
+      - --user
+      - "{{ ansible_user_uid }}:{{ ansible_user_gid }}"
+      - --env
+      - HOME=/home/dev
+      - --env
+      - NPM_CONFIG_PREFIX=/home/dev/.local/npm
+      - --env
+      - NPM_CONFIG_CACHE=/home/dev/.npm
+      - --env
+      - NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
+      - --mount
+      - "type=bind,source={{ ubuntu_desktop_home }}/.local/share/ubuntu-desktop/devops-home,target=/home/dev"
+      - "{{ terminal_devops_image }}"
+      - npm
+      - install
+      - --global
+      - "{{ terminal_angular_cli_package }}"
+    creates: "{{ ubuntu_desktop_home }}/.local/share/ubuntu-desktop/devops-home/.local/npm/bin/ng"
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  when: not ansible_check_mode

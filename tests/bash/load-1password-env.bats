@@ -22,7 +22,7 @@ printf '%s\n' \
 EOF
   chmod +x "${STUB_DIR}/op"
 
-  run env PATH="${STUB_DIR}:${PATH}" "${RENDERER}" \
+  run env PATH="${STUB_DIR}:${PATH}" bash "${RENDERER}" \
     Engineering development.env Corporate
 
   [ "${status}" -eq 0 ]
@@ -46,7 +46,7 @@ printf '%s\n' 'INVALID-NAME=value'
 EOF
   chmod +x "${STUB_DIR}/op"
 
-  run env PATH="${STUB_DIR}:${PATH}" "${RENDERER}" \
+  run env PATH="${STUB_DIR}:${PATH}" bash "${RENDERER}" \
     Engineering development.env ''
 
   [ "${status}" -eq 1 ]
@@ -60,7 +60,7 @@ printf '%s\n' 'VALID_BEFORE_ERROR=must-not-be-exported' 'INVALID-NAME=value'
 EOF
   chmod +x "${STUB_DIR}/op"
 
-  run env PATH="${STUB_DIR}:${PATH}" "${RENDERER}" \
+  run env PATH="${STUB_DIR}:${PATH}" bash "${RENDERER}" \
     Engineering development.env ''
 
   [ "${status}" -eq 1 ]
@@ -74,9 +74,31 @@ exit 1
 EOF
   chmod +x "${STUB_DIR}/op"
 
-  run env PATH="${STUB_DIR}:${PATH}" "${RENDERER}" \
+  run env PATH="${STUB_DIR}:${PATH}" bash "${RENDERER}" \
     Engineering development.env ''
 
   [ "${status}" -eq 1 ]
   [[ "${output}" == *"nao foi possivel baixar"* ]]
+}
+
+@test "profile preexistente preserva variaveis sem executar codigo e renova bloco gerenciado" {
+  profile="${BATS_TEST_TMPDIR}/profile"
+  marker="${BATS_TEST_TMPDIR}/nao-executar"
+  printf 'export EXISTING=local\ntouch %s\n# BEGIN ANSIBLE 1PASSWORD ENV\nexport MANAGED=old\n# END ANSIBLE 1PASSWORD ENV\n' "$marker" >"$profile"
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" EXISTING=remote MANAGED=new\n' >"${STUB_DIR}/op"
+  chmod +x "${STUB_DIR}/op"
+  run env PATH="${STUB_DIR}:${PATH}" bash "${RENDERER}" Engineering development.env '' "$profile"
+  [ "$status" -eq 0 ]
+  [ "$output" = "export MANAGED='new'" ]
+  [ ! -e "$marker" ]
+}
+
+@test "profile com todas as variaveis preexistentes produz bloco vazio valido" {
+  profile="${BATS_TEST_TMPDIR}/profile"
+  printf 'export EXISTING=local\n' >"$profile"
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" EXISTING=remote\n' >"${STUB_DIR}/op"
+  chmod +x "${STUB_DIR}/op"
+  run env PATH="${STUB_DIR}:${PATH}" bash "${RENDERER}" Engineering development.env '' "$profile"
+  [ "$status" -eq 0 ]
+  [ "$output" = ':' ]
 }
