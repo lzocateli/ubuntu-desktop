@@ -55,7 +55,7 @@ Flatpak, o remote e cada aplicativo com `flatpak info`.
 | Aplicativo | ID | Configuracao minima | Estado padrao |
 | --- | --- | --- | --- |
 | Bruno | `com.usebruno.Bruno` | Instalacao de sistema pelo Flathub | Instalado |
-| Microsoft Edge | `com.microsoft.Edge` | Instalacao de sistema pelo Flathub; padrao para HTML e links HTTP/HTTPS; fala pelo Speech Dispatcher | Instalado |
+| Microsoft Edge | `com.microsoft.Edge` | Instalacao de sistema pelo Flathub; padrao para HTML e links HTTP/HTTPS; permissao do socket de fala local, sem garantia de leitura nativa | Instalado |
 | Firefox | `org.mozilla.firefox` | Instalacao de sistema pelo Flathub | Opcional |
 | Remmina | `org.remmina.Remmina` | Instalacao de sistema pelo Flathub | Instalado |
 | Flatseal | `com.github.tchx84.Flatseal` | Instalacao de sistema pelo Flathub | Instalado |
@@ -67,6 +67,13 @@ Firefox e habilitado com `flatpak_apps_install_firefox: true`. Login, RDP e
 extensoes GNOME exigem validacao manual na sessao grafica.
 
 ### Leitura em voz alta no Edge
+
+**Limite de suporte:** instalar o Speech Dispatcher e liberar seu socket nao
+habilita o botao **Ler em voz alta** do Edge nem do leitor imersivo. A
+[documentacao oficial da politica ReadAloudEnabled](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-browser-policies/readaloudenabled)
+lista Windows, macOS, Android e iOS, mas nao Linux. Nao ha garantia documentada
+de que essa politica habilite o recurso no Ubuntu. Trocar Flatpak por DEB ou
+adicionar flags experimentais nao e uma correcao comprovada para esse botao.
 
 A role `host_tools` instala `speech-dispatcher` e
 `speech-dispatcher-espeak-ng`; o socket de usuario e ativado sob demanda pelo
@@ -82,10 +89,25 @@ spd-say --language=pt-BR --wait 'Teste de leitura em voz alta.'
 flatpak override --user --show com.microsoft.Edge
 ```
 
-Feche e abra o Edge novamente depois de aplicar a role. Em uma pagina, use a
-opcao **Ler em voz alta** no menu de contexto ou na barra de ferramentas do
-Edge; a disponibilidade de vozes adicionais depende do proprio navegador e de
-acesso a rede.
+O teste com `spd-say` reproduz audio na sessao grafica e deve ser executado
+manualmente pelo usuario. Ele valida a fala do host, nao a disponibilidade de
+vozes no navegador ou do botao no leitor imersivo. A automacao valida somente
+a permissao do socket; nao realiza um teste de audio nem configura flags de
+sintese de voz do Chromium.
+
+Para ler paginas no Edge Linux, uma alternativa e uma extensao como
+[Read Aloud: A Text to Speech Voice Reader](https://chromewebstore.google.com/detail/read-aloud-a-text-to-speec/hdhinadidafjejdhmfkjgnolgimiaplp).
+Essa alternativa nao foi validada por esta automacao e nao adiciona o botao
+nativo ao leitor imersivo. Antes de instalar, revise publicador, permissoes de
+acesso ao conteudo e politica de privacidade. Vozes em nuvem podem enviar o
+texto a terceiros; disponibilidade, autenticacao e custos dependem do provedor.
+Use a extensao na pagina original, nao presuma acesso ao endereco interno
+`read://`. Nenhuma extensao e instalada, forcada ou autorizada pela role.
+
+A tag `edge_speech` mantem compatibilidade e apenas configura essa permissao
+local. Em `--check --diff`, consulta as permissoes e informa mudancas pendentes
+sem executar `flatpak override --filesystem`. Reinicie o Edge manualmente
+apos uma alteracao de permissao; isso nao garante a aparicao do recurso nativo.
 
 WhatsApp e acessado pelo ZapZap, nao por um aplicativo oficial da Meta para Linux.
 Abra `flatpak run com.rtosta.zapzap` na sessao grafica e vincule o dispositivo

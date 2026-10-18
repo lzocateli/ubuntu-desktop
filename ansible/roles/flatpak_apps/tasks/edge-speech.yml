@@ -1,4 +1,14 @@
 ---
+- name: Informar limite da integracao de fala do Edge no Linux
+  ansible.builtin.debug:
+    msg: >-
+      Esta integracao concede acesso ao socket local do Speech Dispatcher;
+      nao habilita nem valida o recurso nativo Ler em voz alta do Edge.
+      A politica ReadAloudEnabled nao tem suporte documentado para Linux.
+      A ausencia do botao no leitor imersivo nao indica falha desta permissao.
+      Para ouvir paginas no Linux, e necessario avaliar uma extensao de leitura
+      e suas permissoes; nenhuma extensao e instalada automaticamente.
+
 - name: Consultar permissoes de fala atuais do Edge Flatpak
   ansible.builtin.command:
     argv: [flatpak, override, --user, --show, com.microsoft.Edge]
