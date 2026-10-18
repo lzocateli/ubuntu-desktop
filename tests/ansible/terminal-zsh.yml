@@ -20,6 +20,7 @@
           - terminal_oh_my_posh_config_file == 'atomic.omp.json'
           - terminal_oh_my_posh_config_path == '/home/example/.config/oh-my-posh/atomic.omp.json'
           - terminal_zsh_history_size == 50000
+          - terminal_zsh_autosuggestions_version == 'v0.7.1'
           - terminal_vscode_terminal_font_family == 'MesloLGM Nerd Font'
           - terminal_vscode_settings_path == '/home/example/.config/Code/User/settings.json'
           - terminal_vscode_profiles_path == '/home/example/.config/Code/User/profiles'
@@ -42,6 +43,21 @@
           {{ (terminal_profile_test_tasks
               | selectattr('name', 'equalto', 'Carregar integracao de desenvolvimento nos shells')
               | first)['ansible.builtin.blockinfile']['block'] }}
+        terminal_zsh_test_block: >-
+          {{ (terminal_profile_test_tasks
+              | selectattr('name', 'equalto', 'Configurar ZSH e Oh My Posh')
+              | first)['ansible.builtin.blockinfile']['block'] }}
+        terminal_zsh_autosuggestions_task: >-
+          {{ terminal_profile_test_tasks
+             | selectattr('name', 'equalto', 'Instalar plugin zsh-autosuggestions')
+             | first }}
+
+    - name: Validar plugins e versao reproduzivel do ZSH
+      ansible.builtin.assert:
+        that:
+          - "'plugins=(git history-substring-search zsh-autosuggestions)' in terminal_zsh_test_block"
+          - terminal_zsh_autosuggestions_task['ansible.builtin.git'].repo == 'https://github.com/zsh-users/zsh-autosuggestions.git'
+          - "'terminal_zsh_autosuggestions_version' in terminal_zsh_autosuggestions_task['ansible.builtin.git'].version"
 
     - name: Validar exports POSIX e preservacao de valores em shells suportados
       ansible.builtin.command:

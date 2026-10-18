@@ -171,6 +171,26 @@
     - terminal_wireguard_enabled | bool
     - not ansible_check_mode
 
+- name: Desativar conexao automatica dos perfis WireGuard
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ item.interface }}"
+      - connection.autoconnect
+      - "no"
+  become: true
+  loop: "{{ terminal_wireguard_profiles }}"
+  loop_control:
+    label: "{{ item.interface }}"
+  register: terminal_wireguard_autoconnect
+  changed_when: false
+  failed_when: terminal_wireguard_autoconnect.rc != 0
+  when:
+    - terminal_wireguard_enabled | bool
+    - not ansible_check_mode
+
 - name: Informar limitacao do check mode dos perfis WireGuard
   ansible.builtin.debug:
     msg: >-

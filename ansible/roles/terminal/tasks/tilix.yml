@@ -1,0 +1,87 @@
+---
+- name: Consultar UUID do perfil padrao do Tilix
+  ansible.builtin.command:
+    argv:
+      - gsettings
+      - get
+      - com.gexperts.Tilix.ProfilesList
+      - default
+  register: terminal_tilix_default_profile
+  changed_when: false
+  check_mode: false
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  tags: [tilix]
+
+- name: Extrair UUID do perfil padrao do Tilix
+  ansible.builtin.set_fact:
+    terminal_tilix_default_profile_uuid: >-
+      {{ terminal_tilix_default_profile.stdout
+         | regex_search('[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}') }}
+  tags: [tilix]
+
+- name: Validar UUID do perfil padrao do Tilix
+  ansible.builtin.assert:
+    that:
+      - terminal_tilix_default_profile_uuid is string
+      - terminal_tilix_default_profile_uuid | length == 36
+    fail_msg: Nao foi possivel identificar com seguranca o perfil padrao do Tilix.
+  tags: [tilix]
+
+- name: Configurar fonte Nerd Font no perfil padrao do Tilix
+  community.general.dconf:
+    key: "/com/gexperts/Tilix/profiles/{{ terminal_tilix_default_profile_uuid }}/font"
+    value: "'{{ terminal_tilix_font }}'"
+    state: present
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    XDG_CONFIG_HOME: "{{ ubuntu_desktop_home }}/.config"
+  tags: [tilix]
+
+- name: Desativar fonte do sistema no perfil padrao do Tilix
+  community.general.dconf:
+    key: "/com/gexperts/Tilix/profiles/{{ terminal_tilix_default_profile_uuid }}/use-system-font"
+    value: false
+    state: present
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    XDG_CONFIG_HOME: "{{ ubuntu_desktop_home }}/.config"
+  tags: [tilix]
+
+- name: Validar fonte configurada no perfil padrao do Tilix
+  ansible.builtin.command:
+    argv:
+      - gsettings
+      - get
+      - "com.gexperts.Tilix.Profile:/com/gexperts/Tilix/profiles/{{ terminal_tilix_default_profile_uuid }}/"
+      - font
+  register: terminal_tilix_configured_font
+  changed_when: false
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  when: not ansible_check_mode
+  tags: [tilix]
+
+
+- name: Validar desativacao da fonte do sistema no Tilix
+  ansible.builtin.command:
+    argv:
+      - gsettings
+      - get
+      - "com.gexperts.Tilix.Profile:/com/gexperts/Tilix/profiles/{{ terminal_tilix_default_profile_uuid }}/"
+      - use-system-font
+  register: terminal_tilix_system_font
+  changed_when: false
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  when: not ansible_check_mode
+  tags: [tilix]
+
+- name: Confirmar fonte Nerd Font efetiva no Tilix
+  ansible.builtin.assert:
+    that:
+      - terminal_tilix_configured_font.stdout | trim == ("'" ~ terminal_tilix_font ~ "'")
+      - terminal_tilix_system_font.stdout | trim == 'false'
+    fail_msg: O perfil padrao do Tilix nao convergiu para a fonte Nerd Font configurada.
+  when: not ansible_check_mode
+  tags: [tilix]

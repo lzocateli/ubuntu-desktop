@@ -188,7 +188,10 @@ O Ansible mantem `~/.zsh_history` persistente e compartilhado entre sessoes,
 com `HISTSIZE` e `SAVEHIST` de 50.000 e permissoes `0600` no arquivo.
 O bloco gerenciado do `.zshrc` configura `APPEND_HISTORY`, `SHARE_HISTORY`,
 `EXTENDED_HISTORY`, evita duplicatas/comandos precedidos por espaco e carrega
-o tema Atomic versionado no projeto.
+o tema Atomic versionado no projeto. O Ansible habilita `zsh-autosuggestions`
+para sugerir comandos do historico enquanto voce digita (seta para a direita
+aceita) e `history-substring-search` para navegar com as setas por comandos que
+contenham o trecho digitado. A conclusao normal por Tab continua disponivel.
 
 ### TMUX
 
@@ -573,7 +576,9 @@ fc-cache -f "$HOME/.local/share/fonts"
 fc-list : family | grep -F 'MesloLGM Nerd Font'
 ```
 
-Selecione a fonte no perfil do Tilix e reinicie o terminal.
+A role Ansible configura o perfil padrao do Tilix como `MesloLGM Nerd Font Mono
+12`. Feche e abra uma nova sessao do Tilix para carregar a fonte; perfis
+adicionais continuam independentes.
 
 ## .NET 8 e .NET 10
 

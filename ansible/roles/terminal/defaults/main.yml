@@ -25,6 +25,9 @@ terminal_oh_my_posh_config_path: >-
 terminal_zsh_history_size: 50000
 terminal_nerd_fonts_version: 3.4.0
 terminal_oh_my_zsh_version: master
+terminal_zsh_autosuggestions_version: v0.7.1
+terminal_configure_tilix: true
+terminal_tilix_font: MesloLGM Nerd Font Mono 12
 terminal_vscode_terminal_font_family: MesloLGM Nerd Font
 terminal_vscode_settings_path: "{{ ubuntu_desktop_home }}/.config/Code/User/settings.json"
 terminal_vscode_profiles_path: "{{ terminal_vscode_settings_path | dirname }}/profiles"

@@ -1,0 +1,39 @@
+---
+- name: Validar contrato Ansible da fonte Meslo no Tilix
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../ansible/roles/terminal/defaults/main.yml
+  tasks:
+    - name: Carregar tarefas do perfil Tilix
+      ansible.builtin.set_fact:
+        terminal_tilix_test_tasks: >-
+          {{ lookup('file', '../../ansible/roles/terminal/tasks/tilix.yml') | from_yaml }}
+
+    - name: Selecionar tarefas declarativas de fonte do Tilix
+      ansible.builtin.set_fact:
+        terminal_tilix_font_task: >-
+          {{ terminal_tilix_test_tasks
+             | selectattr('name', 'equalto', 'Configurar fonte Nerd Font no perfil padrao do Tilix')
+             | first }}
+        terminal_tilix_system_font_task: >-
+          {{ terminal_tilix_test_tasks
+             | selectattr('name', 'equalto', 'Desativar fonte do sistema no perfil padrao do Tilix')
+             | first }}
+
+    - name: Confirmar fonte definida e escopo do perfil padrao
+      ansible.builtin.assert:
+        that:
+          - terminal_configure_tilix | bool
+          - terminal_tilix_font == 'MesloLGM Nerd Font Mono 12'
+          - terminal_tilix_font_task['community.general.dconf'].state == 'present'
+          - terminal_tilix_font_task['community.general.dconf'].key.startswith('/com/gexperts/Tilix/profiles/')
+          - terminal_tilix_font_task['community.general.dconf'].key.endswith('/font')
+          - "'terminal_tilix_default_profile_uuid' in terminal_tilix_font_task['community.general.dconf'].key"
+          - "'terminal_tilix_font' in terminal_tilix_font_task['community.general.dconf'].value"
+          - terminal_tilix_system_font_task['community.general.dconf'].state == 'present'
+          - terminal_tilix_system_font_task['community.general.dconf'].key.startswith('/com/gexperts/Tilix/profiles/')
+          - terminal_tilix_system_font_task['community.general.dconf'].key.endswith('/use-system-font')
+          - "'terminal_tilix_default_profile_uuid' in terminal_tilix_system_font_task['community.general.dconf'].key"
+          - terminal_tilix_system_font_task['community.general.dconf'].value is false

@@ -130,6 +130,25 @@
     version: "{{ terminal_oh_my_zsh_version }}"
     update: false
 
+- name: Criar diretorio de plugins customizados do Oh My Zsh
+  ansible.builtin.file:
+    path: "{{ ubuntu_desktop_home }}/.oh-my-zsh/custom/plugins"
+    state: directory
+    owner: "{{ ubuntu_desktop_user }}"
+    group: "{{ ubuntu_desktop_user }}"
+    mode: '0755'
+  when: terminal_configure_zsh | bool
+  tags: [zsh]
+
+- name: Instalar plugin zsh-autosuggestions
+  ansible.builtin.git:
+    repo: https://github.com/zsh-users/zsh-autosuggestions.git
+    dest: "{{ ubuntu_desktop_home }}/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
+    version: "{{ terminal_zsh_autosuggestions_version }}"
+    update: false
+  when: terminal_configure_zsh | bool
+  tags: [zsh]
+
 - name: Configurar feeds NuGet do usuario
   ansible.builtin.include_tasks: nuget.yml
 
@@ -158,6 +177,14 @@
     creates: >-
       {{ ubuntu_desktop_home }}/.local/share/fonts/MesloLGM-Nerd-Font-{{ terminal_nerd_fonts_version }}/MesloLGMNerdFont-Regular.ttf
   notify: Atualizar cache de fontes
+
+- name: Configurar fonte no perfil padrao do Tilix
+  ansible.builtin.include_tasks:
+    file: tilix.yml
+    apply:
+      tags: [tilix]
+  tags: [tilix]
+  when: terminal_configure_tilix | bool
 
 - name: Configurar fonte Meslo no terminal integrado do VS Code
   ansible.builtin.include_tasks:
@@ -225,7 +252,7 @@
       setopt APPEND_HISTORY SHARE_HISTORY EXTENDED_HISTORY
       setopt HIST_IGNORE_DUPS HIST_IGNORE_SPACE HIST_REDUCE_BLANKS
       ZSH_THEME=""
-      plugins=(git)
+      plugins=(git history-substring-search zsh-autosuggestions)
       source "$ZSH/oh-my-zsh.sh"
       eval "$(oh-my-posh init zsh --config {{ terminal_oh_my_posh_config_path | quote }})"
   when: terminal_configure_zsh | bool
@@ -534,7 +561,10 @@
         [[ "$HISTSIZE" -ge {{ terminal_zsh_history_size }} ]] &&
         [[ "$SAVEHIST" -ge {{ terminal_zsh_history_size }} ]] &&
         [[ -o appendhistory && -o sharehistory && -o extendedhistory ]] &&
-        [[ -o hist_ignore_dups && -o hist_ignore_space && -o hist_reduce_blanks ]]
+        [[ -o hist_ignore_dups && -o hist_ignore_space && -o hist_reduce_blanks ]] &&
+        (( $+widgets[autosuggest-accept] )) &&
+        (( $+widgets[history-substring-search-up] )) &&
+        (( $+widgets[history-substring-search-down] ))
   environment:
     HOME: "{{ ubuntu_desktop_home }}"
   register: terminal_zsh_configuration_validation

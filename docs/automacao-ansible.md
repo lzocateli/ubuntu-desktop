@@ -25,6 +25,7 @@
     - [Preparar o 1Password](#preparar-o-1password)
     - [Habilitar no inventario](#habilitar-no-inventario)
   - [ZSH, historico e tema Oh My Posh](#zsh-historico-e-tema-oh-my-posh)
+  - [Fonte Meslo no Tilix](#fonte-meslo-no-tilix)
   - [Fonte Meslo no terminal integrado do VS Code](#fonte-meslo-no-terminal-integrado-do-vs-code)
   - [Parametros e variaveis](#parametros-e-variaveis)
   - [Uso rapido](#uso-rapido)
@@ -992,6 +993,37 @@ no home e `terminal_zsh_history_size` controla os limites de memoria e gravacao.
 Abra um novo terminal ou execute `exec zsh` para carregar a configuracao; o
 Ansible nao encerra shells ja abertos.
 
+O Oh My Zsh habilita `history-substring-search` para navegar com as setas pelas
+entradas que contem o texto digitado e `zsh-autosuggestions` para sugerir
+comandos anteriores enquanto voce digita; pressione seta para a direita para
+aceitar a sugestao. A conclusao por Tab continua sendo fornecida pelo ZSH/Oh My
+Zsh. A versao do plugin externo e fixada em
+`terminal_zsh_autosuggestions_version`.
+
+## Fonte Meslo no Tilix
+
+A role `terminal` localiza o UUID do perfil padrao do Tilix e configura somente
+esse perfil via DConf para usar `MesloLGM Nerd Font Mono 12`, desativando a
+preferencia por fonte do sistema. O ajuste corrige os glifos Powerline usados
+pelos separadores do tema Oh My Posh. Perfis adicionais nao sao alterados.
+
+Simule ou aplique apenas essa configuracao com a tag `tilix`:
+
+```bash
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/vision/hosts.yml \
+  --limit vision --tags tilix --dry-run
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/vision/hosts.yml \
+  --limit vision --tags tilix
+```
+
+O controller/host precisa ter `community.general` e os componentes DConf/D-Bus
+do desktop. A configuracao altera preferencias do usuario, sem reiniciar o
+Tilix; feche e abra uma sessao para garantir que a fonte seja atualizada.
+`terminal_configure_tilix: false` desativa o gerenciamento. Para reverter,
+reative a fonte do sistema em **Preferencias > Perfis > Texto** no Tilix.
+
 ## Fonte Meslo no terminal integrado do VS Code
 
 A role `terminal` configura `terminal.integrated.fontFamily` como
@@ -1039,6 +1071,9 @@ Variaveis principais:
 | `terminal_oh_my_posh_config_file` | `atomic.omp.json` | Tema customizado equivalente a referencia |
 | `terminal_oh_my_posh_config_path` | `~/.config/oh-my-posh/atomic.omp.json` | Caminho do tema instalado |
 | `terminal_zsh_history_size` | `50000` | Limite de historico carregado e salvo pelo ZSH |
+| `terminal_zsh_autosuggestions_version` | `v0.7.1` | Versao fixada do plugin de sugestoes do ZSH |
+| `terminal_configure_tilix` | `true` | Gerencia a fonte do perfil padrao do Tilix |
+| `terminal_tilix_font` | `MesloLGM Nerd Font Mono 12` | Fonte aplicada ao perfil padrao do Tilix |
 | `terminal_vscode_terminal_font_family` | `MesloLGM Nerd Font` | Familia da fonte do terminal integrado do VS Code |
 | `terminal_vscode_settings_path` | `~/.config/Code/User/settings.json` | Caminho das preferencias gerenciadas do VS Code |
 | `terminal_devops_image` | `docker.io/lzocateli/devops:cpu-v1` | Imagem publica para Node, npm, npx, ng e op; baixada quando ausente |
