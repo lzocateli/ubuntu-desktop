@@ -15,3 +15,5 @@
           - flatpak_apps_packages | unique | length == flatpak_apps_packages | length
           - flatpak_apps_remote == 'flathub'
           - flatpak_apps_remote_url.startswith('https://')
+          - flatpak_apps_edge_speech_filesystem == 'xdg-run/speech-dispatcher'
+          - "'com.microsoft.Edge' in flatpak_apps_packages"

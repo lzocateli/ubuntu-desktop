@@ -1,0 +1,48 @@
+---
+- name: Consultar permissoes de fala atuais do Edge Flatpak
+  ansible.builtin.command:
+    argv: [flatpak, override, --user, --show, com.microsoft.Edge]
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    XDG_CONFIG_HOME: "{{ ubuntu_desktop_home }}/.config"
+  register: flatpak_apps_edge_speech_override
+  changed_when: false
+  check_mode: false
+
+- name: Informar permissao de fala pendente do Edge em check mode
+  ansible.builtin.debug:
+    msg: >-
+      O Edge Flatpak precisa do acesso de usuario {{ flatpak_apps_edge_speech_filesystem }}
+      para usar o socket local do Speech Dispatcher; nenhuma permissao foi alterada.
+  when:
+    - ansible_check_mode
+    - flatpak_apps_edge_speech_filesystem not in flatpak_apps_edge_speech_override.stdout
+
+- name: Permitir ao Edge somente o socket de fala da sessao do usuario
+  ansible.builtin.command:
+    argv:
+      - flatpak
+      - override
+      - --user
+      - "--filesystem={{ flatpak_apps_edge_speech_filesystem }}"
+      - com.microsoft.Edge
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    XDG_CONFIG_HOME: "{{ ubuntu_desktop_home }}/.config"
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - flatpak_apps_edge_speech_filesystem not in flatpak_apps_edge_speech_override.stdout
+
+- name: Validar permissao do socket de fala do Edge
+  ansible.builtin.command:
+    argv: [flatpak, override, --user, --show, com.microsoft.Edge]
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    XDG_CONFIG_HOME: "{{ ubuntu_desktop_home }}/.config"
+  register: flatpak_apps_edge_speech_validation
+  changed_when: false
+  failed_when: >-
+    flatpak_apps_edge_speech_validation.rc != 0 or
+    flatpak_apps_edge_speech_filesystem not in flatpak_apps_edge_speech_validation.stdout
+  when: not ansible_check_mode

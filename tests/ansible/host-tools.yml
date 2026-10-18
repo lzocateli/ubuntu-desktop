@@ -20,6 +20,8 @@
           - host_tools_claude_code_key_fingerprint == '31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE'
           - host_tools_rtk_version == '1.0.1'
           - host_tools_rtk_sha256 == 'b7f7ed3ce136aa842f56599b5ca88b956bd788a111ec7bd085909f9aeb0d1bc4'
+          - "'speech-dispatcher' in host_tools_packages"
+          - "'speech-dispatcher-espeak-ng' in host_tools_packages"
           - host_tools_packages | unique | length == host_tools_packages | length
           - "'dotnet-sdk-10.0' not in host_tools_packages"
           - host_tools_dotnet_install_dir == ubuntu_desktop_home ~ '/.dotnet'

@@ -7,6 +7,7 @@
   - [Escopo](#escopo)
   - [Cliente Nextcloud Desktop](#cliente-nextcloud-desktop)
   - [Aplicativos Flatpak](#aplicativos-flatpak)
+    - [Leitura em voz alta no Edge](#leitura-em-voz-alta-no-edge)
   - [Ferramentas do host](#ferramentas-do-host)
     - [Atualizacoes do Visual Studio Code](#atualizacoes-do-visual-studio-code)
   - [Terminal e shell](#terminal-e-shell)
@@ -54,7 +55,7 @@ Flatpak, o remote e cada aplicativo com `flatpak info`.
 | Aplicativo | ID | Configuracao minima | Estado padrao |
 | --- | --- | --- | --- |
 | Bruno | `com.usebruno.Bruno` | Instalacao de sistema pelo Flathub | Instalado |
-| Microsoft Edge | `com.microsoft.Edge` | Instalacao de sistema pelo Flathub; padrao para HTML e links HTTP/HTTPS | Instalado |
+| Microsoft Edge | `com.microsoft.Edge` | Instalacao de sistema pelo Flathub; padrao para HTML e links HTTP/HTTPS; fala pelo Speech Dispatcher | Instalado |
 | Firefox | `org.mozilla.firefox` | Instalacao de sistema pelo Flathub | Opcional |
 | Remmina | `org.remmina.Remmina` | Instalacao de sistema pelo Flathub | Instalado |
 | Flatseal | `com.github.tchx84.Flatseal` | Instalacao de sistema pelo Flathub | Instalado |
@@ -64,6 +65,27 @@ Flatpak, o remote e cada aplicativo com `flatpak info`.
 
 Firefox e habilitado com `flatpak_apps_install_firefox: true`. Login, RDP e
 extensoes GNOME exigem validacao manual na sessao grafica.
+
+### Leitura em voz alta no Edge
+
+A role `host_tools` instala `speech-dispatcher` e
+`speech-dispatcher-espeak-ng`; o socket de usuario e ativado sob demanda pelo
+systemd da sessao. A role `flatpak_apps` concede ao Edge somente o caminho
+`xdg-run/speech-dispatcher` do usuario, necessario para o aplicativo Flatpak
+acessar esse sintetizador. Nenhum acesso geral ao barramento D-Bus e concedido.
+
+A configuracao e individual do usuario e pode ser conferida com:
+
+```bash
+systemctl --user status speech-dispatcher.socket
+spd-say --language=pt-BR --wait 'Teste de leitura em voz alta.'
+flatpak override --user --show com.microsoft.Edge
+```
+
+Feche e abra o Edge novamente depois de aplicar a role. Em uma pagina, use a
+opcao **Ler em voz alta** no menu de contexto ou na barra de ferramentas do
+Edge; a disponibilidade de vozes adicionais depende do proprio navegador e de
+acesso a rede.
 
 WhatsApp e acessado pelo ZapZap, nao por um aplicativo oficial da Meta para Linux.
 Abra `flatpak run com.rtosta.zapzap` na sessao grafica e vincule o dispositivo
@@ -96,6 +118,7 @@ defaults da role.
 | Tilix | Pacote Ubuntu | `tilix --version` |
 | Google Chrome | Repositorio Google assinado para APT | `google-chrome --version` |
 | WireGuard VPN | Metapacote `wireguard` do Ubuntu e NetworkManager (`network-manager`, `network-manager-gnome`) | Pacotes via `dpkg-query` e CLI com `wg --version` |
+| Speech Dispatcher | `speech-dispatcher` e `speech-dispatcher-espeak-ng` | Pacotes via `dpkg-query`; socket de usuario ativado sob demanda |
 | Mullvad Desktop | Repositorio oficial Mullvad | Executavel `/opt/Mullvad VPN/mullvad-vpn` |
 | Mullvad CLI | Incluida no pacote oficial `mullvad-vpn` | `mullvad --help` |
 | Podman | Pacotes Ubuntu para runtime rootless; sem daemon de sistema | `podman --version`, `podman info` com `Rootless=true` |

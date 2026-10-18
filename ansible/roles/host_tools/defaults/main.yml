@@ -37,6 +37,8 @@ host_tools_packages:
   - network-manager-gnome
   - podman
   - podman-compose
+  - speech-dispatcher
+  - speech-dispatcher-espeak-ng
   - slirp4netns
   - terraform
   - uidmap

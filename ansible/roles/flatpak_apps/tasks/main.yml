@@ -81,6 +81,13 @@
   failed_when: flatpak_apps_validation.rc != 0
   when: not ansible_check_mode
 
+- name: Configurar leitura em voz alta do Edge para o usuario
+  ansible.builtin.include_tasks:
+    file: edge-speech.yml
+    apply:
+      tags: [edge_speech]
+  tags: [edge_speech]
+
 - name: Validar ausencia dos aplicativos Flatpak removidos
   ansible.builtin.command:
     argv:
