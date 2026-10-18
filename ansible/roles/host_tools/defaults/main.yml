@@ -21,6 +21,8 @@ host_tools_claude_code_key_fingerprint: 31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE
 host_tools_claude_code_apt_uri: https://downloads.claude.ai/claude-code/apt/stable
 host_tools_kubernetes_repository_version: v1.34
 host_tools_apt_architecture: amd64
+host_tools_rtk_version: 1.0.1
+host_tools_rtk_sha256: b7f7ed3ce136aa842f56599b5ca88b956bd788a111ec7bd085909f9aeb0d1bc4
 host_tools_packages:
   - eza
   - azure-cli

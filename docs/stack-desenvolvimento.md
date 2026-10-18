@@ -28,6 +28,7 @@
   - [Terraform](#terraform)
   - [kubectl](#kubectl)
   - [GitHub CLI](#github-cli)
+  - [RTK](#rtk)
   - [1Password](#1password)
   - [uv](#uv)
   - [Oh My Posh](#oh-my-posh)
@@ -343,6 +344,35 @@ claude
 A autenticacao ocorre interativamente no primeiro uso. O Ansible nao armazena
 credenciais nem inicia sessoes. Atualizacoes sao entregues pelo APT, nao pelo
 atualizador automatico do Claude Code.
+
+## RTK
+
+A role `host_tools` instala o pacote amd64 oficial do RTK v1.0.1 por meio do
+release do GitHub, validando o SHA-256 publicado antes da instalacao. A versao
+e o checksum ficam fixados nos defaults da role. O pacote e instalado no host;
+a role `terminal` tambem instala os hooks globais de Claude Code e GitHub Copilot
+no perfil do usuario. A configuracao usa `rtk init` oficial, preserva as
+preferencias existentes e cria backup do `settings.json` do Claude quando ele e
+alterado. Em check mode, somente o plano oficial `--dry-run` e consultado.
+
+As variaveis `terminal_rtk_configure_claude` e
+`terminal_rtk_configure_copilot` controlam os hooks e ficam habilitadas por
+padrao; `terminal_rtk_copilot_home` permite definir outro diretorio Copilot.
+O init responde nao ao prompt opcional de telemetria e nao habilita filtros
+personalizados. Reinicie cada agente apos aplicar a role.
+
+Esta e a edicao padrao, cujo engine esta sob BUSL-1.1 com grant upstream para
+uso em producao; a variante `rtk-oss` e separada e nao inclui o engine.
+
+```bash
+rtk --version
+rtk gain
+```
+
+Em `--check`, o download e a instalacao sao ignorados e a limitacao e informada;
+nenhuma chamada mutante e feita para simular a instalacao. Para remover o pacote,
+use `sudo apt remove rtk` depois de avaliar o impacto nos hooks/configuracoes
+que voce tenha configurado separadamente.
 
 ## PowerShell
 

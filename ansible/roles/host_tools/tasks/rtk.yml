@@ -1,0 +1,64 @@
+---
+- name: Validar metadados da release RTK
+  ansible.builtin.assert:
+    that:
+      - host_tools_rtk_version is match('^[0-9]+\.[0-9]+\.[0-9]+$')
+      - host_tools_rtk_sha256 is match('^[a-f0-9]{64}$')
+
+- name: Consultar versao do pacote RTK instalado
+  ansible.builtin.command:
+    argv: [dpkg-query, -W, '-f=${Version}', rtk]
+  register: host_tools_rtk_installed
+  changed_when: false
+  failed_when: host_tools_rtk_installed.rc not in [0, 1]
+  when: not ansible_check_mode
+
+- name: Baixar pacote Debian oficial do RTK com SHA-256
+  ansible.builtin.get_url:
+    url: "https://github.com/rtk-ai/rtk/releases/download/v{{ host_tools_rtk_version }}/rtk_{{ host_tools_rtk_version }}-1_amd64.deb"
+    dest: "/var/cache/rtk_{{ host_tools_rtk_version }}_amd64.deb"
+    checksum: "sha256:{{ host_tools_rtk_sha256 }}"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  when:
+    - not ansible_check_mode
+    - >-
+      host_tools_rtk_installed.rc != 0 or
+      host_tools_rtk_installed.stdout != host_tools_rtk_version ~ '-1'
+
+- name: Instalar pacote Debian verificado do RTK
+  ansible.builtin.apt:
+    deb: "/var/cache/rtk_{{ host_tools_rtk_version }}_amd64.deb"
+    state: present
+  become: true
+  when:
+    - not ansible_check_mode
+    - >-
+      host_tools_rtk_installed.rc != 0 or
+      host_tools_rtk_installed.stdout != host_tools_rtk_version ~ '-1'
+
+- name: Remover pacote RTK em cache
+  ansible.builtin.file:
+    path: "/var/cache/rtk_{{ host_tools_rtk_version }}_amd64.deb"
+    state: absent
+  become: true
+  when: not ansible_check_mode
+
+- name: Informar limitacao do check mode para RTK
+  ansible.builtin.debug:
+    msg: >-
+      Download e instalacao do RTK {{ host_tools_rtk_version }} sao ignorados em
+      check mode; a aplicacao real instala o pacote amd64 oficial com SHA-256 verificado.
+  when: ansible_check_mode
+
+- name: Consultar versao instalada do RTK
+  ansible.builtin.command:
+    argv: [dpkg-query, -W, '-f=${Version}', rtk]
+  register: host_tools_rtk_package_version
+  changed_when: false
+  failed_when: >-
+    host_tools_rtk_package_version.rc != 0 or
+    host_tools_rtk_package_version.stdout != host_tools_rtk_version ~ '-1'
+  when: not ansible_check_mode

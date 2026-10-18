@@ -1,0 +1,86 @@
+---
+- name: Validar integracoes globais RTK em home temporario
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../ansible/roles/terminal/defaults/main.yml
+  tasks:
+    - name: Criar home temporario isolado para agentes
+      ansible.builtin.tempfile:
+        path: "{{ playbook_dir }}/../../artifacts"
+        state: directory
+        prefix: terminal-rtk-agents-
+      register: terminal_rtk_test_home
+
+    - name: Exercitar init global, verificacao e idempotencia dos agentes
+      block:
+        - name: Definir home temporario dos agentes
+          ansible.builtin.set_fact:
+            ubuntu_desktop_home: "{{ terminal_rtk_test_home.path }}"
+            terminal_rtk_copilot_home: "{{ terminal_rtk_test_home.path }}/.copilot"
+
+        - name: Aplicar integracoes globais RTK em fixture
+          ansible.builtin.include_tasks: ../../ansible/roles/terminal/tasks/rtk-agents.yml
+
+        - name: Consultar arquivos globais gerenciados pelo RTK
+          ansible.builtin.stat:
+            path: "{{ item }}"
+          loop:
+            - "{{ ubuntu_desktop_home }}/.claude/settings.json"
+            - "{{ ubuntu_desktop_home }}/.claude/RTK.md"
+            - "{{ ubuntu_desktop_home }}/.claude/CLAUDE.md"
+            - "{{ ubuntu_desktop_home }}/.config/rtk/filters.toml"
+            - "{{ terminal_rtk_copilot_home }}/hooks/rtk-rewrite.json"
+            - "{{ terminal_rtk_copilot_home }}/copilot-instructions.md"
+          register: terminal_rtk_test_initial_files
+
+        - name: Consultar arquivo opcional de telemetria RTK
+          ansible.builtin.stat:
+            path: "{{ ubuntu_desktop_home }}/.config/rtk/config.toml"
+          register: terminal_rtk_test_telemetry_config
+
+        - name: Ler configuracoes globais dos hooks
+          ansible.builtin.slurp:
+            src: "{{ item }}"
+          loop:
+            - "{{ ubuntu_desktop_home }}/.claude/settings.json"
+            - "{{ terminal_rtk_copilot_home }}/hooks/rtk-rewrite.json"
+            - "{{ terminal_rtk_copilot_home }}/copilot-instructions.md"
+          register: terminal_rtk_test_initial_content
+
+        - name: Guardar checksums dos arquivos RTK convergidos
+          ansible.builtin.stat:
+            path: "{{ item }}"
+            checksum_algorithm: sha256
+          loop: "{{ terminal_rtk_test_initial_files.results | map(attribute='stat.path') | list }}"
+          register: terminal_rtk_test_before_second_run
+
+        - name: Reaplicar integracoes globais RTK
+          ansible.builtin.include_tasks: ../../ansible/roles/terminal/tasks/rtk-agents.yml
+
+        - name: Consultar checksums apos segunda aplicacao
+          ansible.builtin.stat:
+            path: "{{ item }}"
+            checksum_algorithm: sha256
+          loop: "{{ terminal_rtk_test_initial_files.results | map(attribute='stat.path') | list }}"
+          register: terminal_rtk_test_after_second_run
+
+        - name: Confirmar hooks, awareness e idempotencia
+          ansible.builtin.assert:
+            that:
+              - terminal_rtk_test_initial_files.results | map(attribute='stat.exists') | min
+              - "'rtk hook claude' in (terminal_rtk_test_initial_content.results[0].content | b64decode)"
+              - "'rtk hook copilot' in (terminal_rtk_test_initial_content.results[1].content | b64decode)"
+              - "'RTK' in (terminal_rtk_test_initial_content.results[2].content | b64decode)"
+              - not terminal_rtk_test_telemetry_config.stat.exists
+              - >-
+                terminal_rtk_test_before_second_run.results | map(attribute='stat.checksum') | list ==
+                terminal_rtk_test_after_second_run.results | map(attribute='stat.checksum') | list
+              - "'[dry-run] would' not in terminal_rtk_claude_plan.stdout"
+              - "'[dry-run] would' not in terminal_rtk_copilot_plan.stdout"
+      always:
+        - name: Remover somente o home temporario deste teste
+          ansible.builtin.file:
+            path: "{{ terminal_rtk_test_home.path }}"
+            state: absent

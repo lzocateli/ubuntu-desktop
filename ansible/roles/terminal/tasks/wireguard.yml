@@ -105,6 +105,9 @@
     - not ansible_check_mode
 
 - name: Preparar e importar perfis WireGuard no NetworkManager
+  when:
+    - terminal_wireguard_enabled | bool
+    - not ansible_check_mode
   block:
     - name: Criar diretorio temporario para importacao NetworkManager
       ansible.builtin.file:
@@ -113,6 +116,10 @@
         owner: "{{ ubuntu_desktop_user }}"
         group: "{{ ubuntu_desktop_user }}"
         mode: '0700'
+      when: >-
+        terminal_wireguard_profiles
+        | rejectattr('interface', 'in', terminal_wireguard_nmcli_profiles.stdout_lines)
+        | list | length > 0
 
     - name: Preparar arquivos com nomes de interface WireGuard validos
       ansible.builtin.copy:
@@ -166,10 +173,6 @@
       ansible.builtin.file:
         path: "{{ ubuntu_desktop_home }}/.config/wireguard/.import"
         state: absent
-
-  when:
-    - terminal_wireguard_enabled | bool
-    - not ansible_check_mode
 
 - name: Desativar conexao automatica dos perfis WireGuard
   ansible.builtin.command:

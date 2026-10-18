@@ -75,6 +75,13 @@
     force: true
   become: true
 
+- name: Configurar integracoes globais RTK para agentes de IA
+  ansible.builtin.include_tasks:
+    file: rtk-agents.yml
+    apply:
+      tags: [rtk_agents]
+  tags: [rtk_agents]
+
 - name: Baixar arquivo do uv
   ansible.builtin.get_url:
     url: "{{ terminal_uv_archive_url }}"

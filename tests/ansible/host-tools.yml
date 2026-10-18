@@ -18,11 +18,48 @@
           - "'claude-code' in host_tools_packages"
           - host_tools_claude_code_apt_uri == 'https://downloads.claude.ai/claude-code/apt/stable'
           - host_tools_claude_code_key_fingerprint == '31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE'
+          - host_tools_rtk_version == '1.0.1'
+          - host_tools_rtk_sha256 == 'b7f7ed3ce136aa842f56599b5ca88b956bd788a111ec7bd085909f9aeb0d1bc4'
           - host_tools_packages | unique | length == host_tools_packages | length
           - "'dotnet-sdk-10.0' not in host_tools_packages"
           - host_tools_dotnet_install_dir == ubuntu_desktop_home ~ '/.dotnet'
           - not host_tools_remove_legacy_dotnet
           - not host_tools_confirm_remove_legacy_dotnet
+
+    - name: Carregar contrato de instalacao RTK sem executar mutacoes
+      ansible.builtin.set_fact:
+        host_tools_test_rtk_tasks: >-
+          {{ lookup('file', '../../ansible/roles/host_tools/tasks/rtk.yml') | from_yaml }}
+      tags: [rtk]
+
+    - name: Conferir release e protecao do check mode do RTK
+      ansible.builtin.assert:
+        that:
+          - host_tools_rtk_version is match('^[0-9]+\.[0-9]+\.[0-9]+$')
+          - host_tools_rtk_sha256 is match('^[a-f0-9]{64}$')
+          - "'host_tools_rtk_sha256' in host_tools_test_rtk_download['ansible.builtin.get_url'].checksum"
+          - "'not ansible_check_mode' in host_tools_test_rtk_download.when"
+          - "'host_tools_rtk_installed.rc' in (host_tools_test_rtk_download.when | join(' '))"
+          - host_tools_test_rtk_install['ansible.builtin.apt'].state == 'present'
+          - "'not ansible_check_mode' in host_tools_test_rtk_install.when"
+          - "'host_tools_rtk_installed.rc' in (host_tools_test_rtk_install.when | join(' '))"
+          - host_tools_test_rtk_install['ansible.builtin.apt'].deb.endswith('_amd64.deb')
+          - host_tools_test_rtk_query.changed_when == false
+      tags: [rtk]
+      vars:
+        host_tools_test_rtk_query: >-
+          {{ host_tools_test_rtk_tasks | selectattr('name', 'equalto', 'Consultar versao do pacote RTK instalado') | first }}
+        host_tools_test_rtk_download: >-
+          {{ host_tools_test_rtk_tasks | selectattr('name', 'equalto', 'Baixar pacote Debian oficial do RTK com SHA-256') | first }}
+        host_tools_test_rtk_install: >-
+          {{ host_tools_test_rtk_tasks | selectattr('name', 'equalto', 'Instalar pacote Debian verificado do RTK') | first }}
+
+    - name: Exercitar instalacao RTK ausente em check mode
+      ansible.builtin.include_tasks:
+        file: ../../ansible/roles/host_tools/tasks/rtk.yml
+        apply:
+          tags: [rtk]
+      tags: [rtk]
 
     - name: Garantir metadados verificados dos SDKs lado a lado
       ansible.builtin.assert:
@@ -55,8 +92,6 @@
     - name: Exercitar SDK ausente em check mode sem download ou extracao
       ansible.builtin.include_tasks:
         file: ../../ansible/roles/host_tools/tasks/dotnet-sdk.yml
-        apply:
-          check_mode: true
       vars:
         host_tools_dotnet_install_dir: "{{ playbook_dir }}/../../artifacts/dotnet-check-mode-user/.dotnet"
         host_tools_dotnet_sdk: "{{ host_tools_dotnet_sdks | first }}"

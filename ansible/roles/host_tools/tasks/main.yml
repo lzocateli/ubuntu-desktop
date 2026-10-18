@@ -104,6 +104,13 @@
     state: present
   become: true
 
+- name: Instalar RTK
+  ansible.builtin.include_tasks:
+    file: rtk.yml
+    apply:
+      tags: [rtk]
+  tags: [rtk]
+
 - name: Consultar instalacao do PowerShell
   ansible.builtin.stat:
     path: "{{ host_tools_powershell_install_dir }}/{{ host_tools_powershell_version }}/pwsh"

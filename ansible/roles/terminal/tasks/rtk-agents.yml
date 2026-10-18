@@ -1,0 +1,96 @@
+---
+- name: Consultar plano de integracao RTK global no Claude Code
+  ansible.builtin.command:
+    argv:
+      - rtk
+      - init
+      - --global
+      - --auto-patch
+      - --no-trust-filters
+      - --dry-run
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    XDG_CONFIG_HOME: "{{ ubuntu_desktop_home }}/.config"
+  register: terminal_rtk_claude_plan
+  changed_when: false
+  check_mode: false
+  when: terminal_rtk_configure_claude | bool
+
+- name: Informar plano pendente do hook Claude em check mode
+  ansible.builtin.debug:
+    msg: >-
+      O hook global RTK do Claude Code esta ausente ou divergente; o init foi
+      apenas consultado e nenhuma configuracao foi alterada.
+  when:
+    - ansible_check_mode
+    - terminal_rtk_configure_claude | bool
+    - "'[dry-run] would' in terminal_rtk_claude_plan.stdout"
+
+- name: Configurar hook global RTK do Claude Code
+  ansible.builtin.command:
+    argv:
+      - rtk
+      - init
+      - --global
+      - --auto-patch
+      - --no-trust-filters
+    stdin: "n"
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    XDG_CONFIG_HOME: "{{ ubuntu_desktop_home }}/.config"
+  register: terminal_rtk_claude_install
+  changed_when: true
+  when:
+    - terminal_rtk_configure_claude | bool
+    - not ansible_check_mode
+    - "'[dry-run] would' in terminal_rtk_claude_plan.stdout"
+
+- name: Consultar plano de integracao RTK global no GitHub Copilot
+  ansible.builtin.command:
+    argv:
+      - rtk
+      - init
+      - --global
+      - --copilot
+      - --auto-patch
+      - --no-trust-filters
+      - --dry-run
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    XDG_CONFIG_HOME: "{{ ubuntu_desktop_home }}/.config"
+    COPILOT_HOME: "{{ terminal_rtk_copilot_home }}"
+  register: terminal_rtk_copilot_plan
+  changed_when: false
+  check_mode: false
+  when: terminal_rtk_configure_copilot | bool
+
+- name: Informar plano pendente do hook Copilot em check mode
+  ansible.builtin.debug:
+    msg: >-
+      O hook global RTK do GitHub Copilot esta ausente ou divergente; o init foi
+      apenas consultado e nenhuma configuracao foi alterada.
+  when:
+    - ansible_check_mode
+    - terminal_rtk_configure_copilot | bool
+    - "'[dry-run] would' in terminal_rtk_copilot_plan.stdout"
+
+- name: Configurar hook global RTK do GitHub Copilot
+  ansible.builtin.command:
+    argv:
+      - rtk
+      - init
+      - --global
+      - --copilot
+      - --auto-patch
+      - --no-trust-filters
+    stdin: "n"
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+    XDG_CONFIG_HOME: "{{ ubuntu_desktop_home }}/.config"
+    COPILOT_HOME: "{{ terminal_rtk_copilot_home }}"
+  register: terminal_rtk_copilot_install
+  changed_when: true
+  when:
+    - terminal_rtk_configure_copilot | bool
+    - not ansible_check_mode
+    - "'[dry-run] would' in terminal_rtk_copilot_plan.stdout"
