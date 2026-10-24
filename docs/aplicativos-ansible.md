@@ -9,6 +9,7 @@
   - [Aplicativos Flatpak](#aplicativos-flatpak)
     - [Leitura em voz alta no Edge](#leitura-em-voz-alta-no-edge)
   - [Ferramentas do host](#ferramentas-do-host)
+    - [OBS Studio](#obs-studio)
     - [Atualizacoes do Visual Studio Code](#atualizacoes-do-visual-studio-code)
   - [Terminal e shell](#terminal-e-shell)
   - [Dependencias do controller](#dependencias-do-controller)
@@ -114,9 +115,9 @@ Abra `flatpak run com.rtosta.zapzap` na sessao grafica e vincule o dispositivo
 pelo celular. Para Telegram, abra `flatpak run org.telegram.desktop` e autentique
 sua conta. A automacao nao gerencia credenciais nem mensagens.
 
-OBS Studio, Spotify e KeePassXC foram excluidos do escopo. A automacao garante
-que seus Flatpaks estejam ausentes, inclusive em maquinas configuradas por uma
-versao anterior do projeto; dados de usuario nao sao apagados automaticamente.
+Spotify e KeePassXC foram excluidos do escopo. A automacao garante que seus
+Flatpaks estejam ausentes, inclusive em maquinas configuradas por uma versao
+anterior do projeto; dados de usuario nao sao apagados automaticamente.
 
 ## Ferramentas do host
 
@@ -141,6 +142,7 @@ defaults da role.
 | Google Chrome | Repositorio Google assinado para APT | `google-chrome --version` |
 | WireGuard VPN | Metapacote `wireguard` do Ubuntu e NetworkManager (`network-manager`, `network-manager-gnome`) | Pacotes via `dpkg-query` e CLI com `wg --version` |
 | Speech Dispatcher | `speech-dispatcher` e `speech-dispatcher-espeak-ng` | Pacotes via `dpkg-query`; socket de usuario ativado sob demanda |
+| OBS Studio | `obs-studio` pelo APT do Ubuntu | Instalacao do pacote; perfis e cenas configurados pelo usuario |
 | Mullvad Desktop | Repositorio oficial Mullvad | Executavel `/opt/Mullvad VPN/mullvad-vpn` |
 | Mullvad CLI | Incluida no pacote oficial `mullvad-vpn` | `mullvad --help` |
 | Podman | Pacotes Ubuntu para runtime rootless; sem daemon de sistema | `podman --version`, `podman info` com `Rootless=true` |
@@ -157,6 +159,42 @@ defaults da role.
 | .NET SDK 8 | Arquivo oficial Microsoft fixado por versao e SHA-512 em `~/.dotnet` | `~/.dotnet/dotnet --list-sdks` |
 | .NET SDK 10 | Arquivo oficial Microsoft fixado por versao e SHA-512 no mesmo `~/.dotnet` | `dotnet --version` no projeto com `global.json` |
 | Certificado HTTPS .NET | `openssl`, `libnss3-tools` e trust por usuario | `dotnet dev-certs https --check --trust` |
+
+### OBS Studio
+
+A role `host_tools` instala `obs-studio` pelo APT do Ubuntu. O Ansible nao grava
+um perfil inicial: o assistente nativo do OBS precisa da sessao grafica e escolhe
+FPS e encoder a partir do hardware, da rede e do uso informado (streaming ou
+gravacao). Apos instalar, abra **Ferramentas > Assistente de configuracao
+automatica** e aplique o resultado. Em **Configuracoes > Audio**, confira a taxa
+de 48 kHz, o modo stereo e selecione os dispositivos conectados para audio do
+desktop e microfone. Os dispositivos e nomes variam por host; o padrao do OBS e
+usar os dispositivos de audio default do sistema. Nao coloque credenciais de
+transmissao no Ansible.
+
+`/mnt/kingston/Nextcloud/OBS` e uma biblioteca de midia sincronizada, nao uma
+pasta de configuracao do OBS: a estrutura atual contem `videos`, `musicas`,
+`efeitos` e `Animated-Lower-Thirds`, sem perfis ou colecoes de cenas. Mantenha
+esses arquivos no Nextcloud e adicione-os como fontes nas cenas do OBS usando
+os caminhos nesse diretorio. Nao copie essa arvore para o repositorio Ansible.
+
+Trazer perfis/cenas para o Ansible so faria sentido depois de separar e revisar
+arquivos portaveis. Perfis podem conter chaves de stream em `service.json`, e
+cenas podem guardar caminhos absolutos, nomes de dispositivos e configuracoes
+especificas do host. Se futuramente forem versionados, remova secrets, use
+caminhos deliberadamente portaveis e mantenha os assets grandes no Nextcloud.
+
+Para instalar somente o OBS na estacao `vision`, simule e depois aplique a tag
+dedicada:
+
+```bash
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/vision/hosts.yml \
+  --limit vision --tags obs_studio --dry-run
+bash scripts/bash/run-ansible.sh \
+  --inventory ansible/inventories/private/vision/hosts.yml \
+  --limit vision --tags obs_studio
+```
 
 O Podman e executado sem `sudo` e sem daemon root. A role gerencia
 `~/.config/containers/containers.conf` e `storage.conf`, mantendo redes e

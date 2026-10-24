@@ -11,6 +11,7 @@
         that:
           - "'com.rtosta.zapzap' in flatpak_apps_packages"
           - "'org.telegram.desktop' in flatpak_apps_packages"
+          - "'com.obsproject.Studio' not in flatpak_apps_removed_packages"
           - flatpak_apps_packages | intersect(flatpak_apps_removed_packages) | length == 0
           - flatpak_apps_packages | unique | length == flatpak_apps_packages | length
           - flatpak_apps_remote == 'flathub'

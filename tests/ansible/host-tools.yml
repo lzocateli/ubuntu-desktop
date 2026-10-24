@@ -22,11 +22,29 @@
           - host_tools_rtk_sha256 == 'b7f7ed3ce136aa842f56599b5ca88b956bd788a111ec7bd085909f9aeb0d1bc4'
           - "'speech-dispatcher' in host_tools_packages"
           - "'speech-dispatcher-espeak-ng' in host_tools_packages"
+          - "'obs-studio' not in host_tools_packages"
           - host_tools_packages | unique | length == host_tools_packages | length
           - "'dotnet-sdk-10.0' not in host_tools_packages"
           - host_tools_dotnet_install_dir == ubuntu_desktop_home ~ '/.dotnet'
           - not host_tools_remove_legacy_dotnet
           - not host_tools_confirm_remove_legacy_dotnet
+
+    - name: Carregar contrato da instalacao isolada do OBS
+      ansible.builtin.set_fact:
+        host_tools_test_obs_tasks: >-
+          {{ lookup('file', '../../ansible/roles/host_tools/tasks/main.yml') | from_yaml }}
+
+    - name: Garantir instalacao APT do OBS com tag dedicada
+      ansible.builtin.assert:
+        that:
+          - host_tools_test_obs_install['ansible.builtin.apt'].name == 'obs-studio'
+          - host_tools_test_obs_install['ansible.builtin.apt'].state == 'present'
+          - host_tools_test_obs_install['ansible.builtin.apt'].update_cache | bool
+          - host_tools_test_obs_install.become | bool
+          - "'obs_studio' in host_tools_test_obs_install.tags"
+      vars:
+        host_tools_test_obs_install: >-
+          {{ host_tools_test_obs_tasks | selectattr('name', 'equalto', 'Instalar OBS Studio de forma isolada') | first }}
 
     - name: Carregar contrato de instalacao RTK sem executar mutacoes
       ansible.builtin.set_fact:
