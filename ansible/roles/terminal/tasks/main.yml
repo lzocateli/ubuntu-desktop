@@ -295,7 +295,7 @@
     group: "{{ ubuntu_desktop_user }}"
     mode: '0600'
     validate: bash -n %s
-  loop: [node, npm, npx, ng, op, lh, lhr]
+  loop: [node, npm, npx, ng, op, lh, lhr, sqlcmd]
   tags: [dotnet_env]
 
 - name: Instalar integracao das ferramentas de desenvolvimento em container
@@ -513,15 +513,34 @@
         {{ item.validation }}
   loop:
     - shell: bash
-      validation: declare -F node npm npx ng op lh lhr >/dev/null
+      validation: declare -F node npm npx ng op lh lhr sqlcmd >/dev/null
     - shell: zsh
-      validation: whence -w node npm npx ng op lh lhr >/dev/null
+      validation: whence -w node npm npx ng op lh lhr sqlcmd >/dev/null
   loop_control:
     label: "{{ item.shell }}"
   register: terminal_development_shell_validation
   changed_when: false
   failed_when: terminal_development_shell_validation.rc != 0
   when: not ansible_check_mode
+
+- name: Validar SQLCMD na imagem DevOps publica
+  ansible.builtin.command:
+    argv:
+      - podman
+      - run
+      - --pull=never
+      - --rm
+      - --entrypoint
+      - sqlcmd
+      - "{{ terminal_devops_image }}"
+      - --version
+  environment:
+    HOME: "{{ ubuntu_desktop_home }}"
+  register: terminal_sqlcmd_image_validation
+  changed_when: false
+  failed_when: terminal_sqlcmd_image_validation.rc != 0
+  when: not ansible_check_mode
+  tags: [dotnet_env]
 
 - name: Consultar instalacao do Oh My Zsh
   ansible.builtin.stat:

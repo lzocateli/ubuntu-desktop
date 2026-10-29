@@ -17,9 +17,9 @@
 | Campo | Valor |
 | --- | --- |
 | Status geral | Em andamento |
-| Ultima atualizacao | 2026-10-11 |
+| Ultima atualizacao | 2026-10-29 |
 | Progresso | 6 de 7 etapas concluidas |
-| Evidencias | Validacoes de 2026-10-02 sao historicas; mudancas para Ubuntu 26.04 e Podman rootless ainda precisam de validacao |
+| Evidencias | Validacoes de 2026-10-02 sao historicas; mudancas para Ubuntu 26.04 e Podman rootless ainda precisam de validacao. A imagem publica `cpu-v1` inclui go-sqlcmd v1.10.0; o runtime expõe a funcao `sqlcmd` em Bash/ZSH, repassa nomes `SQLCMD*` sem valores nos argumentos e valida a CLI dentro do container. A suite Bats do runtime passou com 17 testes. |
 | Proximo passo | Validar Podman rootless, check mode e idempotencia em VM Ubuntu 26.04 descartavel |
 
 ## Objetivo

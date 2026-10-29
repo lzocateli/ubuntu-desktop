@@ -26,6 +26,7 @@ _ubuntu_desktop_container_audit() (
 )
 
 _ubuntu_desktop_devops_run() {
+  local command_name="${1:-}"
   if ! command -v podman >/dev/null 2>&1; then
     printf 'podman nao esta disponivel no host.\n' >&2
     return 127
@@ -35,6 +36,13 @@ _ubuntu_desktop_devops_run() {
   local -a podman_args=(run --pull=never --rm)
   [[ -t 0 ]] && podman_args+=(-i)
   [[ -t 1 ]] && podman_args+=(-t)
+
+  local variable_name
+  if [[ "${command_name}" == sqlcmd ]]; then
+    while IFS= read -r variable_name; do
+      podman_args+=(--env "${variable_name}")
+    done < <(command env | awk -F= '$1 ~ /^SQLCMD/ {print $1}')
+  fi
 
   command podman "${podman_args[@]}" \
     --userns=keep-id \
@@ -50,7 +58,7 @@ _ubuntu_desktop_devops_run() {
     {{ terminal_devops_image | quote }} "$@"
 }
 
-for _ubuntu_desktop_function in node npm npx ng op lh lhr; do
+for _ubuntu_desktop_function in node npm npx ng op lh lhr sqlcmd; do
   _ubuntu_desktop_function_file="$HOME/.local/lib/ubuntu-desktop/${_ubuntu_desktop_function}.sh"
   if [ -r "$_ubuntu_desktop_function_file" ]; then
     . "$_ubuntu_desktop_function_file"

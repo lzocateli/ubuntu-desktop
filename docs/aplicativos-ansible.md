@@ -270,6 +270,7 @@ a automacao nao autentica nem inicia sessoes do Claude Code.
 | Chaves SSH | `op` em container no alvo le o vault e a role grava config e chaves com permissoes restritas | `ssh -G` valida host, usuario, identidade e porta |
 | Fontes NuGet | `~/.nuget/NuGet/NuGet.Config` define nuget.org e nugettest depois da instalacao do .NET | `dotnet nuget list source` |
 | Node, npm, npx e ng | Funcoes na imagem publica `docker.io/lzocateli/devops:cpu-v1`; Angular persistente via npm publico | Funcoes carregadas em Bash e ZSH |
+| SQLCMD | go-sqlcmd v1.10.0 na imagem publica; funcao Bash/ZSH executa via Podman e encaminha variaveis `SQLCMD*` sem valores nos argumentos | A role executa `sqlcmd --version` dentro da imagem |
 | lh e lhr | eza com cores automaticas e busca recursiva por padroes | Testes isolados em Bash e ZSH |
 | Copilot CLI | Binario Linux x64 oficial fixado e verificado por SHA-256 | `copilot --version` no host |
 

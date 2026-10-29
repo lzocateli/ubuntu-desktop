@@ -495,8 +495,10 @@ Altere as variaveis ou o template da role para tornar uma mudanca persistente.
 ## Ferramentas de desenvolvimento
 
 A role `terminal` instala um runtime compartilhado e o carrega em `~/.profile`,
-`~/.bashrc` e `~/.zshrc`. As funcoes `node`, `npm` e `npx` executam na imagem
-definida por `terminal_devops_image`; Node/npm nao sao instalados no host.
+`~/.bashrc` e `~/.zshrc`. As funcoes `node`, `npm`, `npx` e `sqlcmd` executam na
+imagem definida por `terminal_devops_image`; os clientes nao sao instalados no host.
+O wrapper `sqlcmd` encaminha somente nomes de variaveis `SQLCMD*`; os valores,
+incluindo `SQLCMDPASSWORD`, nao sao colocados nos argumentos do Podman.
 
 O diretorio atual e montado como `/workspace`, com `--userns=keep-id` e UID/GID
 do usuario. O home interno e persistido em
@@ -1076,7 +1078,7 @@ Variaveis principais:
 | `terminal_tilix_font` | `MesloLGM Nerd Font Mono 12` | Fonte aplicada ao perfil padrao do Tilix |
 | `terminal_vscode_terminal_font_family` | `MesloLGM Nerd Font` | Familia da fonte do terminal integrado do VS Code |
 | `terminal_vscode_settings_path` | `~/.config/Code/User/settings.json` | Caminho das preferencias gerenciadas do VS Code |
-| `terminal_devops_image` | `docker.io/lzocateli/devops:cpu-v1` | Imagem publica para Node, npm, npx, ng e op; baixada quando ausente |
+| `terminal_devops_image` | `docker.io/lzocateli/devops:cpu-v1` | Imagem publica para Node, npm, npx, ng, op e SQLCMD v1.10.0; baixada quando ausente |
 | `terminal_angular_cli_package` | `@angular/cli@latest` | Pacote publico instalado se ausente; fixe versao para reproducibilidade |
 | `terminal_onepassword_home_dir` | `~/.local/share/ubuntu-desktop/onepassword-home` | Home privado da CLI em container |
 | `terminal_copilot_cli_version` | `1.0.91` | Versao standalone do Copilot CLI instalada no host |

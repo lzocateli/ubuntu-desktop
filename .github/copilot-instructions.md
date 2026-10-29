@@ -2,6 +2,10 @@
 
 ## Escopo
 
+O documento principal do projeto e `README.md` na raiz. `.github/README-copilot.md` e
+auxiliar e serve somente como mapa de instrucoes do Copilot; nao o trate como
+README principal nem duplique nele a documentacao operacional do projeto.
+
 Regras obrigatórias para criar, alterar e revisar automações neste repositório.
 Responda e documente em português brasileiro. Leia implementação e testes próximos
 antes de editar; preserve alterações do usuário. Não faça commit ou push sem pedido.
@@ -69,4 +73,4 @@ por automação, sem presumir que o terminal do desenvolvedor usa o mesmo SO do 
 - [PowerShell](instructions/powershell.instructions.md)
 - [Ansible](instructions/ansible.instructions.md)
 - [Documentação operacional](instructions/documentation.instructions.md)
-- [Índice e checklist](README.md)
+- [Índice e checklist](README-copilot.md)

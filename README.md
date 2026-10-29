@@ -19,6 +19,9 @@
 Automacoes Bash, PowerShell e Ansible para configurar e manter Ubuntu Desktop
 com execucao previsivel, simulacao segura e documentacao operacional.
 
+Este e o README principal do projeto. O README em `.github/` e auxiliar e serve
+somente como mapa das instrucoes do Copilot.
+
 ## Estado Atual
 
 Automacao Ansible implementada para Ubuntu Desktop 26.04 LTS amd64. O projeto
@@ -53,6 +56,7 @@ bibliotecas e dependencias nao estao listados individualmente.
 | Copilot | GitHub Copilot CLI 1.0.91 | Binario standalone instalado no host |
 | Claude Code | Claude Code CLI | Repositorio APT oficial Anthropic no canal `stable` |
 | Node.js | Node, npm, npx e Angular CLI | Funcoes usam `docker.io/lzocateli/devops:cpu-v1` via Podman; imagem preparada pelo Ansible e Angular persistente no home do container |
+| SQL Server | SQLCMD v1.10.0 | Funcao `sqlcmd` usa a imagem DevOps via Podman; nao instala o cliente no host |
 
 As funcoes `lh` e `lhr` usam `eza` com cores automaticas. O ZSH carrega o
 `.profile` antes do tema customizado `atomic.omp.json`, equivalente ao projeto
@@ -80,8 +84,8 @@ da pasta de sincronizacao sao concluidos no assistente grafico.
 | `docs/` | Guias operacionais; planos em `docs/plan/` |
 | `artifacts/` | Logs/temporarios ignorados pelo Git |
 
-Pastas sem implementacao permanecem ausentes. Veja o
-[mapa de instrucoes](.github/README.md) e as
+Pastas sem implementacao permanecem ausentes. Para orientacoes do Copilot, veja
+o [mapa auxiliar de instrucoes](.github/README-copilot.md) e as
 [regras gerais](.github/copilot-instructions.md).
 
 ## Documentacao

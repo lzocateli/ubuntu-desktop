@@ -11,6 +11,9 @@
 
 ## Objetivo
 
+Este e um guia auxiliar do Copilot. O documento principal do projeto e o
+[`README.md` da raiz](../README.md).
+
 Orientar automações Ubuntu Desktop seguras, idempotentes e rastreáveis. Base copiada
 do SecuritFilesMaster e adaptada usando padrões de ajuda, logs e exemplos observados
 em `run-terraform-local.sh`, `common-config.sh` e `export-iis-sites-inventory.ps1`

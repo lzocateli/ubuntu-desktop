@@ -10,7 +10,7 @@ setup() {
   mkdir -p "${HOME}"
   FUNCTION_DIR="$HOME/.local/lib/ubuntu-desktop"
   mkdir -p "$FUNCTION_DIR"
-  for function_name in node npm npx ng op lh lhr; do
+  for function_name in node npm npx ng op lh lhr sqlcmd; do
     cp -- "${REPO_ROOT}/ansible/roles/terminal/templates/${function_name}.sh.j2" \
       "$FUNCTION_DIR/${function_name}.sh"
   done
@@ -158,6 +158,23 @@ BASH
   [ "${status}" -ne 0 ]
 }
 
+@test "sqlcmd usa a imagem DevOps e encaminha nomes SQLCMD sem valores secretos" {
+  create_podman_stub
+
+  for shell in bash zsh; do
+    run env SQLCMDPASSWORD=sql-password-sentinel "${shell}" -c \
+      '. "$RUNTIME"; sqlcmd -S sql.example.invalid -U inventario -Q "SELECT 1"'
+
+    [ "${status}" -eq 0 ]
+    grep -Fx -- "--pull=never" "${capture}"
+    grep -Fx -- "SQLCMDPASSWORD" "${capture}"
+    grep -Fx -- "sqlcmd" "${capture}"
+    grep -Fx -- "sql.example.invalid" "${capture}"
+    run grep -F -- "sql-password-sentinel" "${capture}"
+    [ "${status}" -ne 0 ]
+  done
+}
+
 @test "runtime rootless fica restrito a node npm e npx" {
   run bash -c '. "$RUNTIME"; declare -F copilot'
 
@@ -221,7 +238,7 @@ BASH
   for shell in bash zsh; do
     run "$shell" -c '
       . "$RUNTIME"
-      for function_name in node npm npx ng op lh lhr; do
+      for function_name in node npm npx ng op lh lhr sqlcmd; do
         command -v "$function_name" >/dev/null || exit 1
       done
       test -z "${_ubuntu_desktop_function+x}" &&
@@ -229,7 +246,7 @@ BASH
     '
     [ "$status" -eq 0 ]
   done
-  run grep -E '^(node|npm|npx|ng|op|lh|lhr)\(\)' "$RUNTIME"
+  run grep -E '^(node|npm|npx|ng|op|lh|lhr|sqlcmd)\(\)' "$RUNTIME"
   [ "$status" -eq 1 ]
 }
 

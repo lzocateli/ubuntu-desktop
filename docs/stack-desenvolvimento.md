@@ -242,16 +242,22 @@ diretamente e executam no usuario atual.
 
 ## Node em container e Copilot CLI local
 
-A automacao nao instala Node.js, npm ou npx no host. As funcoes `node`, `npm`,
-`npx` e `ng` usam `docker.io/lzocateli/devops:cpu-v1`, montam o diretorio atual em
-`/workspace` e executam com o UID/GID do usuario:
+A automacao nao instala Node.js, npm, npx ou SQLCMD no host. As funcoes `node`,
+`npm`, `npx`, `ng` e `sqlcmd` usam `docker.io/lzocateli/devops:cpu-v1`, montam o
+diretorio atual em `/workspace` e executam com o UID/GID do usuario:
 
 ```bash
 node --version
 npm --version
 npx --version
 ng version
+sqlcmd --version
 ```
+
+A imagem publica inclui go-sqlcmd v1.10.0. Para conexoes SQL, exporte as variaveis
+`SQLCMDSERVER`, `SQLCMDDBNAME`, `SQLCMDUSER` e `SQLCMDPASSWORD` no ambiente do
+usuario; o wrapper encaminha os nomes ao container sem registrar nem incluir os
+valores nos argumentos do Podman.
 
 A role `terminal` consulta a imagem rootless e faz `podman pull` somente se
 ausente. O Docker Hub e publico: sem login, token ou dependencia do Artifactory.
