@@ -45,7 +45,7 @@ bibliotecas e dependencias nao estao listados individualmente.
 | Navegadores | Microsoft Edge e Google Chrome | Edge Flatpak e configurado como navegador padrao para HTML e links HTTP/HTTPS; Chrome via repositorio APT oficial |
 | Flatpak | Bruno, Microsoft Edge, Remmina, Flatseal e Extension Manager | Instalados em escopo de sistema pelo Flathub; Edge e instalado por padrao |
 | Firefox | Firefox Snap | Removido junto com Snap somente se a migracao destrutiva for explicitamente habilitada e confirmada; Firefox Flatpak nao e instalado por padrao |
-| Desktop | Visual Studio Code, Tilix e GNOME Software | VS Code pelo repositorio Microsoft; Tilix e GNOME Software via APT |
+| Desktop | Visual Studio Code, Tilix, GNOME Software e GNOME Sushi | VS Code pelo repositorio Microsoft; Tilix, GNOME Software e Sushi via APT; Sushi abre a previa do arquivo selecionado com Espaco |
 | Senhas | 1Password Desktop e CLI em container | Desktop via APT; funcao e wrapper `op` usam imagem DevOps publica, sem instalar a CLI nativa |
 | Containers | Podman rootless e Podman Compose | Sem daemon root; imagens e dados ficam no home do usuario |
 | Armazenamento | Discos ext4 e cliente Nextcloud Desktop | Montagem persistente de `/mnt/kingston` configurada manualmente; sincronizacao em `/mnt/kingston/Nextcloud` |

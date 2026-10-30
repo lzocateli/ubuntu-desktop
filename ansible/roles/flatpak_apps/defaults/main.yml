@@ -1,5 +1,6 @@
 ---
 flatpak_apps_install_firefox: false
+flatpak_apps_gnome_sushi_package: gnome-sushi
 flatpak_apps_remote: flathub
 flatpak_apps_remote_url: https://flathub.org/repo/flathub.flatpakrepo
 flatpak_apps_edge_speech_filesystem: xdg-run/speech-dispatcher

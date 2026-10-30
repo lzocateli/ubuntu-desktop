@@ -5,6 +5,7 @@
       - flatpak
       - gnome-software
       - gnome-software-plugin-flatpak
+      - "{{ flatpak_apps_gnome_sushi_package }}"
     state: present
     update_cache: true
     cache_valid_time: 3600
@@ -62,6 +63,7 @@
     - flatpak
     - gnome-software
     - gnome-software-plugin-flatpak
+    - "{{ flatpak_apps_gnome_sushi_package }}"
   register: flatpak_apps_package_validation
   changed_when: false
   failed_when: >-

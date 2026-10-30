@@ -139,6 +139,7 @@ defaults da role.
 | ZSH | Pacote Ubuntu e shell padrao opcional | `zsh --version` |
 | TMUX | Pacote Ubuntu | `tmux -V` |
 | Tilix | Pacote Ubuntu | `tilix --version` |
+| GNOME Sushi | Pacote `gnome-sushi` via APT | Previa do arquivo selecionado no Arquivos ao pressionar Espaco |
 | Google Chrome | Repositorio Google assinado para APT | `google-chrome --version` |
 | WireGuard VPN | Metapacote `wireguard` do Ubuntu e NetworkManager (`network-manager`, `network-manager-gnome`) | Pacotes via `dpkg-query` e CLI com `wg --version` |
 | Speech Dispatcher | `speech-dispatcher` e `speech-dispatcher-espeak-ng` | Pacotes via `dpkg-query`; socket de usuario ativado sob demanda |
